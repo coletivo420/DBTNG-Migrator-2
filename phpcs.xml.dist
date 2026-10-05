@@ -1,9 +1,21 @@
 <?xml version="1.0"?>
 <ruleset name="DBTNG Migrator 2">
   <description>Drupal coding standards for DBTNG Migrator 2.</description>
+
   <file>src</file>
   <file>tests</file>
+
   <arg name="extensions" value="php,module,inc,install,test,profile,theme"/>
-  <rule ref="Drupal"/>
+
+  <rule ref="Drupal">
+    <!--
+      DBTNG uses strict types, typed properties, typed parameters and return
+      types. Require PHPDoc when it adds semantic/generic information, but do
+      not require boilerplate comments that merely repeat a PHP signature.
+    -->
+    <exclude name="Drupal.Commenting.FunctionComment"/>
+    <exclude name="Drupal.Commenting.VariableComment"/>
+  </rule>
+
   <rule ref="DrupalPractice"/>
 </ruleset>
