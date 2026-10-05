@@ -26,9 +26,12 @@ Implementation is adapter-specific.
 
 The exact mechanism for each adapter must be proven by integration tests.
 
-## Rebuilds
+## Imports and rebuilds
 
-A rebuild must open a consistent source view before bulk copying.
+Both first import and later rebuild must open a consistent source view before bulk copying.
+
+Import adds one extra invariant: destination emptiness is checked before writes begin, and the destination is not considered initialized until validation succeeds.
+
 
 - MariaDB/MySQL: InnoDB/MVCC consistent read semantics on a dedicated connection.
 - SQLite: a read transaction/snapshot strategy that provides a stable view while writes continue when the selected journal mode permits it.

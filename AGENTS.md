@@ -24,6 +24,11 @@ This file is normative guidance for humans and AI coding agents. Architectural c
 18. **Never apply a lossy/clean projection to the authoritative primary.**
 19. **Runtime topology is deployment configuration.** The active Drupal database must be selected in `settings.php` / environment-backed settings before Config API is available. Do not move this responsibility into Drupal Config API alone.
 20. **Default replication profile is `full`.** `clean` is explicit opt-in and currently valid only for SQLite standby.
+21. **Bootstrap import is allowed only into a proven-empty destination.** Non-empty means fail; do not merge, overwrite or silently drop existing destination data.
+22. **Empty-destination import is bidirectional for the initial engine pair.** MariaDB/MySQL -> SQLite and SQLite -> MariaDB/MySQL are both product requirements.
+23. **There is no destructive force-import in the initial product.** Adding overwrite/merge semantics requires a separate ADR and explicit data-loss design.
+24. **A destination is not initialized until import validation succeeds.** A failed import must never be reported as a usable standby.
+25. **Clean import is only for SQLite standby.** Any database intended to become primary must be initialized from a `full` representation.
 
 ## Current product boundary
 
@@ -31,6 +36,8 @@ Initial topologies:
 
 - MariaDB/MySQL primary -> SQLite standby (`full` or opt-in `clean`).
 - SQLite primary -> MariaDB/MySQL standby (`full`).
+
+Both directions support bootstrap import when the destination is empty.
 
 PostgreSQL and other engines are future adapters.
 
@@ -91,8 +98,9 @@ Before mutating the server, follow [docs/DEVELOPMENT_ENVIRONMENT.md](docs/DEVELO
 4. install Drupal as the domain user through Composer;
 5. link this module through a Composer path repository;
 6. configure both database engines;
-7. exercise both primary topologies;
-8. record test evidence in the PR/commit notes.
+7. exercise empty-destination import in both directions;
+8. exercise both primary topologies;
+9. record test evidence in the PR/commit notes.
 
 ## Change discipline
 
@@ -100,7 +108,7 @@ Every implementation commit should answer:
 
 - Which invariant does this change depend on?
 - Which failure mode is covered by tests?
-- Does this affect portability, consistency, topology, failover or clean-profile semantics?
+- Does this affect import, portability, consistency, topology, failover or clean-profile semantics?
 - Which document/ADR needs updating?
 - Was the Virtualmin integration environment used, and if not, why was it unnecessary?
 

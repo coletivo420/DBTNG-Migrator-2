@@ -16,7 +16,7 @@ MariaDB/MySQL PRIMARY
     |\
     | +--> durable change capture --> SyncEngine --> PolicyEngine --> SQLite STANDBY
     |
-    +----> consistent SnapshotEngine --------------------------------------^
+    +----> Import / Snapshot / Rebuild ------------------------------------^
 ```
 
 ### Alternate topology
@@ -29,7 +29,7 @@ SQLite PRIMARY
     |\
     | +--> durable change capture --> SyncEngine --> PolicyEngine --> MariaDB/MySQL STANDBY
     |
-    +----> consistent SnapshotEngine ---------------------------------------------^
+    +----> Import / Snapshot / Rebuild -------------------------------------------^
 ```
 
 ## Bootstrap topology vs module configuration
@@ -63,10 +63,37 @@ The initial engine pair is:
 
 Primary and standby must use different engines in the initial product.
 
+## Core operations
+
+### Import
+
+`ImportManagerInterface` initializes a **proven-empty** standby from the configured primary.
+
+It uses:
+
+- `DestinationStateInspectorInterface` to reject populated targets;
+- source schema introspection;
+- portability analysis;
+- destination schema construction;
+- bounded-memory row transfer;
+- validation.
+
+Import supports both initial engine directions.
+
+### Snapshot/Rebuild
+
+`SnapshotManagerInterface` reconstructs an already initialized standby. It uses an isolated candidate and never destroys the last valid standby before replacement validation succeeds.
+
+### Continuous synchronization
+
+`ChangeCaptureInterface` plus `SyncEngineInterface` maintains an initialized standby after import/rebuild.
+
 ## Components
 
 - `DatabaseTopology`: immutable primary/standby engine and connection-key selection.
-- `SnapshotManagerInterface`: orchestrates a consistent rebuild from the configured primary.
+- `ImportManagerInterface`: orchestrates first initialization into an empty destination.
+- `DestinationStateInspectorInterface`: proves whether an import destination is empty.
+- `SnapshotManagerInterface`: orchestrates a consistent rebuild.
 - `SourceSchemaIntrospectorInterface`: converts physical primary schema to DBTNG's portable model.
 - `ChangeCaptureInterface`: owns engine-specific durable primary-side change capture.
 - `SyncEngineInterface`: applies pending changes to the standby and reports synchronization state.
@@ -79,23 +106,30 @@ Primary and standby must use different engines in the initial product.
 
 Physical schema is discovered from the configured primary database. Drupal metadata may enrich interpretation, especially for entity projection, but does not replace physical introspection.
 
-## Rebuild publication
+## Destination initialization safety
 
-A rebuild never mutates the published standby in place.
+A first import and a rebuild are not the same operation.
 
-For SQLite standby, the candidate is a temporary database file and publication can use same-filesystem atomic replacement.
+- Import: destination must be empty and is initialized only after validation.
+- Rebuild: destination is already initialized; work happens in an isolated candidate before promotion.
 
-For MariaDB/MySQL standby, the destination adapter must provide an isolated rebuild target and an explicit server-side promotion strategy with the same external guarantee: failure does not destroy the last known-good standby.
+There is no initial merge or force-overwrite path.
+
+For SQLite import/rebuild, temporary database files provide natural isolation.
+
+For MariaDB/MySQL empty import, the destination adapter must track created state and define cleanup/retry semantics. Rebuild of an initialized MariaDB/MySQL standby requires a separate isolated candidate/promotion strategy.
 
 ## Replication profile safety
 
 `full` is the default profile and is valid in both initial directions.
 
-`clean` is an opt-in SQLite-standby policy. It is never applied to the primary. Future `clean-public` remains unimplemented until entity-aware projection is proven.
+`clean` is an opt-in SQLite-standby policy. It is never applied to the primary. A destination intended for promotion to primary must be imported as `full`.
+
+Future `clean-public` remains unimplemented until entity-aware projection is proven.
 
 ## Development architecture
 
-The canonical integration site is `bdtgn.toca.net.br`. Its deployment settings must exercise both role assignments without changing core module code. See [DEVELOPMENT_ENVIRONMENT.md](DEVELOPMENT_ENVIRONMENT.md).
+The canonical integration site is `bdtgn.toca.net.br`. Its deployment settings must exercise both role assignments and empty-destination imports without changing core module code. See [DEVELOPMENT_ENVIRONMENT.md](DEVELOPMENT_ENVIRONMENT.md).
 
 ## Future entity projection
 

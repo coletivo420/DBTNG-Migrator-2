@@ -177,11 +177,36 @@ It must map the selected engine to `$databases['default']['default']` and the ot
 
 Secrets must come from protected environment/server configuration, not repository files.
 
-## 11. Installation and smoke testing
+## 11. Import/bootstrap and smoke testing
 
-Until cross-database rebuild/synchronization is implemented, it is acceptable to reinstall/reset the **dedicated development data** between topology tests. Do not pretend an empty alternate database is already a synchronized standby.
+The development environment must explicitly exercise the empty-destination import requirement before continuous synchronization work is considered complete.
 
-For each primary topology:
+### MariaDB/MySQL -> SQLite
+
+1. install/populate Drupal using MariaDB/MySQL as primary;
+2. ensure the configured SQLite destination is absent or contains no user-defined objects;
+3. run the DBTNG import once the command is implemented;
+4. validate the imported SQLite database;
+5. verify a second import attempt is rejected because the destination is no longer empty;
+6. for a `full` import, perform a controlled topology selection and boot Drupal from SQLite.
+
+### SQLite -> MariaDB/MySQL
+
+1. reset only the dedicated development data;
+2. install/populate Drupal using SQLite as primary;
+3. create an empty dedicated MariaDB/MySQL destination;
+4. run the DBTNG import;
+5. validate schema/data;
+6. verify a second import attempt is rejected;
+7. perform a controlled topology selection and boot Drupal from the imported MariaDB/MySQL database.
+
+### Non-empty rejection
+
+For each destination engine, create one harmless user-defined test object before import and prove that preflight fails **without adding, dropping or modifying anything**.
+
+Until the import command itself exists, it is acceptable to reinstall/reset the **dedicated development data** between topology tests. Do not pretend an empty alternate database is already a synchronized standby.
+
+For each primary topology after initialization:
 
 1. set the runtime primary selector;
 2. ensure the matching replication profile is valid;

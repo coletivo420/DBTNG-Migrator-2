@@ -42,12 +42,36 @@ Drupal configuration stores replication behavior such as the standby profile, va
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/examples/settings.dbtng.php.example](docs/examples/settings.dbtng.php.example).
 
+## Empty-destination import
+
+DBTNG must support a **one-time logical import into an empty destination** in both directions:
+
+```text
+MariaDB/MySQL -> empty SQLite
+SQLite        -> empty MariaDB/MySQL
+```
+
+This is the bootstrap path for creating the first standby and also the basis for controlled migrations between engines.
+
+The import preflight is strict:
+
+- destination must be proven empty before any user schema/data is written;
+- a non-empty destination causes a hard failure;
+- the initial implementation has no destructive `--force`, merge or overwrite mode;
+- source remains authoritative during the import;
+- destination is validated before it can be accepted as initialized;
+- `clean` is allowed only when the empty destination is SQLite acting as standby;
+- an import intended for later promotion to primary must use `full`.
+
+See [docs/IMPORT.md](docs/IMPORT.md).
+
 ## Goals
 
 - Let the deployment select MariaDB/MySQL or SQLite as the primary database.
 - Default to MariaDB/MySQL primary with SQLite standby.
+- Import the selected primary into an empty standby in either supported direction.
 - Keep the selected primary authoritative during normal operation.
-- Maintain the other configured database as a continuously synchronized standby.
+- Maintain the initialized standby as a continuously synchronized database.
 - Support `full` and, when SQLite is the standby, optional `clean` replication.
 - Never silently lose changes committed to the selected primary.
 - Make disaster recovery behavior explicit and testable.
@@ -84,14 +108,15 @@ Revision filtering is deliberately **not** implemented as blind table filtering.
 
 Reserved for a future, more aggressive SQLite standby projection that can exclude unpublished-only content. It is not implemented yet and is not accepted as a runtime profile.
 
-## Four subsystems
+## Core operations
 
-1. **SnapshotEngine** — creates a consistent rebuild from the selected primary to the configured standby.
-2. **ChangeCapture** — records durable changes on the selected primary using an engine-specific adapter.
-3. **PolicyEngine** — decides how standby data is represented.
-4. **SyncEngine** — applies captured changes to the standby and tracks lag.
+1. **Import** — initializes a proven-empty destination from the selected primary.
+2. **Snapshot/Rebuild** — reconstructs an already initialized standby using an isolated candidate.
+3. **ChangeCapture** — records durable changes on the selected primary using an engine-specific adapter.
+4. **PolicyEngine** — decides how standby data is represented.
+5. **SyncEngine** — applies captured changes to the standby and tracks lag.
 
-The synchronization design explicitly rejects naive independent dual writes. Each supported primary engine needs a durable capture strategy that survives standby failure.
+Import and rebuild share schema introspection, portability analysis, bounded-memory transfer and validation, but they have different destination preconditions.
 
 ## Development environment
 
@@ -120,12 +145,13 @@ This repository is in the bootstrap phase. Interfaces, models, policies, documen
 
 1. Project skeleton, selectable topology contracts, documentation and CI.
 2. MariaDB/MySQL and SQLite physical schema inventory and portability analysis.
-3. Destination builders and consistent rebuilds for both directions.
-4. Engine-specific durable change capture.
-5. Continuous synchronization and reconciliation.
-6. Optional SQLite-standby clean projection.
-7. Entity-aware revision projection.
-8. Validation, lag monitoring and application compatibility tests.
-9. Manual failover and controlled recovery in either direction.
+3. Empty-destination import/bootstrap in both directions.
+4. Destination builders and consistent rebuilds for both directions.
+5. Engine-specific durable change capture.
+6. Continuous synchronization and reconciliation.
+7. Optional SQLite-standby clean projection.
+8. Entity-aware revision projection.
+9. Validation, lag monitoring and application compatibility tests.
+10. Manual failover and controlled recovery in either direction.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/SYNC_MODEL.md](docs/SYNC_MODEL.md), [docs/DEVELOPMENT_ENVIRONMENT.md](docs/DEVELOPMENT_ENVIRONMENT.md) and [AGENTS.md](AGENTS.md) before changing core behavior.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/IMPORT.md](docs/IMPORT.md), [docs/SYNC_MODEL.md](docs/SYNC_MODEL.md), [docs/DEVELOPMENT_ENVIRONMENT.md](docs/DEVELOPMENT_ENVIRONMENT.md) and [AGENTS.md](AGENTS.md) before changing core behavior.

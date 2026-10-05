@@ -32,6 +32,10 @@ Drupal entity metadata is used later for semantic projection, not to replace phy
 
 Portable schema is consumed by a destination adapter for the configured standby engine. The system must not assume that the destination is always a SQLite file.
 
+Each destination adapter must also support strict empty-state detection for bootstrap import. A destination that already contains user-defined application objects is not a valid import target.
+
+Empty-destination import is required in both directions before continuous synchronization is considered complete.
+
 ## Unknown objects
 
 Unknown tables default to preservation (`copy`) unless an operator explicitly defines a policy. This prevents new contrib/custom tables from being silently omitted after module upgrades.
