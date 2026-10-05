@@ -1,29 +1,43 @@
 # Recovery
 
-There are two distinct recovery cases.
+Recovery is defined by **current authority**, not by a permanently privileged database engine.
 
 ## Standby never became writable authority
 
-Rebuild or catch up SQLite from the MariaDB/MySQL primary.
+Rebuild or catch up the standby from the configured primary.
 
 ## Standby became writable authority
 
-Treat SQLite as the current source of truth. The planned recovery workflow is:
+After failover, treat the promoted standby as the current source of truth. Recovery creates a new validated secondary representation from that authority before any later authority switch.
+
+Possible directions include:
 
 ```text
 SQLite authority
     |
     v
-new empty MariaDB/MySQL
+new MariaDB/MySQL
     |
     v
-logical migration
-    |
-    v
-validation
+logical migration + validation
     |
     v
 controlled authority switch
 ```
 
-Automatic merge with an old primary timeline is explicitly out of scope for the initial releases.
+and:
+
+```text
+MariaDB/MySQL authority
+    |
+    v
+new SQLite
+    |
+    v
+logical migration + validation
+    |
+    v
+controlled authority switch
+```
+
+Automatic merge with an old divergent primary timeline is explicitly out of scope for the initial releases.

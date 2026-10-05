@@ -1,12 +1,20 @@
-# Snapshot Format
+# Snapshot / Standby State Format
 
-A published standby consists of:
+A validated standby is engine-specific.
+
+## SQLite standby
+
+A published SQLite standby consists of:
 
 - `standby.sqlite` — validated SQLite database.
 - `standby.json` — sidecar manifest.
 
-The manifest format is versioned independently from the module and must not contain database passwords, full DSNs or secrets.
+Temporary rebuild artifacts use unique `.partial` names and are never treated as valid standby databases.
 
-Planned manifest fields include snapshot id, timestamps, DBTNG/Drupal/PHP versions, source/destination database families, policy profile, captured/applied sequence positions, table/row statistics, validation results, portability flags, file size and checksum.
+## MariaDB/MySQL standby
 
-Temporary rebuild artifacts use a unique `.partial` name and are never treated as valid standby databases.
+A MariaDB/MySQL standby is server-side state rather than a single portable file. Its destination adapter must create an isolated candidate database/schema (or equivalent safe staging target), validate it, and promote it without destroying the last known-good standby before success.
+
+## Common manifest
+
+The manifest format is versioned independently from the module and records the configured primary/standby engines and roles. It must not contain database passwords, full DSNs or secrets.

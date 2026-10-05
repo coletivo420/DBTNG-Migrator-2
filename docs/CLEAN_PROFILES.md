@@ -2,6 +2,17 @@
 
 A clean standby is not a partial schema. Tables Drupal expects still exist; only data classified as disposable is omitted.
 
+## Role restriction
+
+Clean projection applies **only to a standby representation**. It must never mutate or filter the authoritative primary database.
+
+In the initial product:
+
+- MariaDB/MySQL primary -> SQLite standby: `full`, `clean`, and later `clean-public`.
+- SQLite primary -> MariaDB/MySQL standby: `full` only.
+
+If SQLite itself is selected as primary, its cache/session/revision data is ordinary primary data and DBTNG does not delete it under a clean standby policy.
+
 ## Initial `clean` defaults
 
 | Pattern/table | Data policy | Reason |
@@ -27,4 +38,4 @@ Future `EntityProjectionPolicy` modes:
 - `default_only`: preserve the current/default representation and required relational rows; remove non-default historical/draft revisions safely.
 - `published_only`: intentionally exclude unpublished-only entities; this is a sanitized standby and has a different recovery guarantee.
 
-`default_only` is the planned default revision projection for the clean standby once entity-aware projection is implemented.
+`default_only` is the planned default revision projection for the clean SQLite standby once entity-aware projection is implemented.

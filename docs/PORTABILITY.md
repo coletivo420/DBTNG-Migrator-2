@@ -1,6 +1,14 @@
 # Portability
 
-DBTNG Migrator 2 transports a normalized logical schema and rows; it does not rewrite raw MySQL dumps into SQLite SQL.
+DBTNG Migrator 2 transports a normalized logical schema and rows; it does not rewrite raw vendor SQL dumps into another dialect.
+
+## Initial engine pair
+
+The initial bidirectional role pair is:
+
+- MariaDB/MySQL <-> SQLite
+
+MariaDB/MySQL is the default primary, but either engine can be selected as the primary role.
 
 ## Strict by default
 
@@ -8,7 +16,21 @@ Unsupported source semantics fail portability analysis instead of silently chang
 
 ## Physical schema first
 
-The first MariaDB/MySQL introspector will inspect real tables, columns, indexes, constraints, engines, collations and relevant metadata. Drupal entity metadata is used later for semantic projection, not to replace physical discovery.
+Each supported primary engine needs its own physical schema introspector.
+
+```text
+SourceSchemaIntrospectorInterface
+  |-- MysqlFamilySchemaIntrospector
+  +-- SqliteSchemaIntrospector
+```
+
+The first implementation phase must inventory both directions before the selectable-primary feature can be considered complete.
+
+Drupal entity metadata is used later for semantic projection, not to replace physical discovery.
+
+## Destination adapters
+
+Portable schema is consumed by a destination adapter for the configured standby engine. The system must not assume that the destination is always a SQLite file.
 
 ## Unknown objects
 

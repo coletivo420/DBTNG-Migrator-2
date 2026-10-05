@@ -1,16 +1,17 @@
-# Temporary SQLite build and atomic publication
+# Isolated standby rebuild and validated publication
 
-- Status: Accepted
+- Status: Superseded in scope by ADR-013
 - Date: 2026-10-05
 
-## Context
+## Original decision
 
-DBTNG Migrator 2 needs explicit correctness guarantees across different database engines and operational failure modes.
+The initial design assumed SQLite was always the standby, so rebuilds used a temporary SQLite database and atomic same-filesystem publication.
 
-## Decision
+## Revised decision
 
-Build and validate a unique temporary database, then publish on the same local filesystem. The previous valid standby survives any pre-publication failure.
+The invariant remains: **never rebuild in place over the last known-good standby**.
 
-## Consequences
+- SQLite standby: use a unique temporary database file and atomic same-filesystem publication after validation.
+- MariaDB/MySQL standby: use an isolated server-side candidate and an adapter-specific validated promotion strategy.
 
-Implementations and tests must preserve this decision. A change that reverses it requires a new ADR and updates to `AGENTS.md` and affected operational documentation.
+ADR-013 makes primary/standby roles engine-selectable and therefore generalizes the publication abstraction.

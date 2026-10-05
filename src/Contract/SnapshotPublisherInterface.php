@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace Drupal\dbtng_migrator\Contract;
 
 use Drupal\dbtng_migrator\Model\SnapshotManifest;
+use Drupal\dbtng_migrator\Model\StandbyCandidate;
 
 /**
- * Publishes an already validated temporary snapshot artifact.
+ * Promotes an already validated isolated standby candidate.
  */
 interface SnapshotPublisherInterface {
 
   public function publish(
-    string $temporaryDatabasePath,
-    string $publishedDatabasePath,
+    StandbyCandidate $candidate,
     SnapshotManifest $manifest,
   ): void;
 
