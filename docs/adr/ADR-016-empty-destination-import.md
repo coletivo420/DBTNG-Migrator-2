@@ -1,35 +1,35 @@
 # Empty-destination bidirectional import
 
-- Status: Accepted
+- Status: Accepted; destination-precondition scope extended by ADR-018
 - Date: 2026-10-05
 
 ## Context
 
 A continuous standby needs an initial full state before incremental synchronization can begin. The project must also retain the original DBTNG Migrator capability of logically moving a Drupal database between supported engines.
 
-The user requires imports in both initial directions whenever the destination is empty.
+The original decision required the destination to be empty. That remains the safest and default bootstrap path, but operators also need an explicit way to replace a populated standby.
 
 ## Decision
 
-DBTNG provides a first-class bootstrap import operation:
+DBTNG provides first-class bidirectional logical import:
 
-1. MariaDB/MySQL primary -> empty SQLite destination.
-2. SQLite primary -> empty MariaDB/MySQL destination.
+1. MariaDB/MySQL primary -> SQLite standby.
+2. SQLite primary -> MariaDB/MySQL standby.
 
-Import has a strict destination precondition: no user-defined destination schema/data may exist.
+For an empty destination, import proceeds directly.
 
-The initial product has no destructive force, merge, truncate or overwrite mode.
+ADR-018 extends destination preparation for a populated **standby** with explicit `abort`, `backup_then_clear` and `clear` policies. It does not introduce merge semantics and does not permit clearing the primary.
 
-Import shares introspection, portability mapping, bounded-memory transfer and validation components with snapshot/rebuild, but remains a distinct orchestration operation because its safety precondition is different.
+Import shares introspection, portability mapping, bounded-memory transfer and validation components with snapshot/rebuild, but remains a distinct orchestration operation.
 
 `full` is valid in both directions. `clean` is valid only for SQLite when it remains a standby. A destination intended for promotion into primary must be imported with `full`.
 
 ## Consequences
 
-- Add an explicit destination-state inspector abstraction.
-- Add a dedicated import request/orchestration contract.
-- Non-empty destinations fail before migration writes begin.
+- Keep explicit destination-state inspection.
+- Keep a dedicated import request/orchestration contract.
+- Empty destinations remain the direct bootstrap path.
+- Populated destinations follow ADR-018 and never merge data.
 - Sync cannot start until import validation marks the destination initialized.
-- MariaDB/MySQL and SQLite destination adapters require integration tests for emptiness detection.
-- Failed imports must be observable and must never masquerade as initialized standbys.
-- Any future merge/overwrite functionality requires a separate ADR.
+- MariaDB/MySQL and SQLite adapters require integration tests for empty/non-empty detection and preparation.
+- Failed imports must be observable and never masquerade as initialized standbys.

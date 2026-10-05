@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Drupal\dbtng_migrator\Model;
 
 /**
- * Input for an empty-destination bootstrap import.
+ * Input for a cross-engine logical import into the configured standby.
  */
 final readonly class ImportRequest {
 
@@ -14,6 +14,7 @@ final readonly class ImportRequest {
   public function __construct(
     public ReplicationProfile $profile = ReplicationProfile::Full,
     public bool $strict = TRUE,
+    public NonEmptyDestinationPolicy $nonEmptyPolicy = NonEmptyDestinationPolicy::Abort,
     ?DatabaseTopology $topology = NULL,
   ) {
     $this->topology = $topology ?? DatabaseTopology::default();

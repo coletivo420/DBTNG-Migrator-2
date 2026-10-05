@@ -42,34 +42,44 @@ Drupal configuration stores replication behavior such as the standby profile, va
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/examples/settings.dbtng.php.example](docs/examples/settings.dbtng.php.example).
 
-## Empty-destination import
+## Import and destination preparation
 
-DBTNG must support a **one-time logical import into an empty destination** in both directions:
+DBTNG supports logical import in both directions:
 
 ```text
-MariaDB/MySQL -> empty SQLite
-SQLite        -> empty MariaDB/MySQL
+MariaDB/MySQL -> SQLite
+SQLite        -> MariaDB/MySQL
 ```
 
-This is the bootstrap path for creating the first standby and also the basis for controlled migrations between engines.
+An empty standby is imported directly. If the standby already contains data, the operator chooses an explicit policy:
 
-The import preflight is strict:
+- `abort` — default, no mutation;
+- `backup_then_clear` — create and verify a native safety backup, clear the standby, then import;
+- `clear` — explicitly clear the standby without a safety backup.
 
-- destination must be proven empty before any user schema/data is written;
-- a non-empty destination causes a hard failure;
-- the initial implementation has no destructive `--force`, merge or overwrite mode;
-- source remains authoritative during the import;
-- destination is validated before it can be accepted as initialized;
-- `clean` is allowed only when the empty destination is SQLite acting as standby;
-- an import intended for later promotion to primary must use `full`.
+DBTNG never silently merges or overwrites an existing database, and it never clears the active primary. The destination is considered initialized only after validation succeeds.
 
-See [docs/IMPORT.md](docs/IMPORT.md).
+See [docs/IMPORT.md](docs/IMPORT.md) and [docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md).
+
+## Native backup / download / restore
+
+DBTNG also provides same-engine native database backups:
+
+- MariaDB/MySQL: `.sql` or `.sql.gz`;
+- SQLite: consistent `.sqlite` or `.sqlite.gz` snapshot.
+
+Backups may be created from either configured role and downloaded from the administration UI or written through CLI/private storage. Native restore targets the matching standby engine; cross-engine movement always uses DBTNG's logical import engine.
+
+The implementation is upstream-first and adapts proven behavior from Backup and Migrate, SQLite Backup, SQLite's native backup API and Drush SQL tooling instead of creating a second independent backup framework.
+
+See [docs/UPSTREAM_COMPONENTS.md](docs/UPSTREAM_COMPONENTS.md).
 
 ## Goals
 
 - Let the deployment select MariaDB/MySQL or SQLite as the primary database.
 - Default to MariaDB/MySQL primary with SQLite standby.
-- Import the selected primary into an empty standby in either supported direction.
+- Import the selected primary into the standby in either supported direction, with explicit handling for non-empty destinations.
+- Download native backups of MariaDB/MySQL and SQLite and restore them to matching standby engines.
 - Keep the selected primary authoritative during normal operation.
 - Maintain the initialized standby as a continuously synchronized database.
 - Support `full` and, when SQLite is the standby, optional `clean` replication.
@@ -110,13 +120,15 @@ Reserved for a future, more aggressive SQLite standby projection that can exclud
 
 ## Core operations
 
-1. **Import** — initializes a proven-empty destination from the selected primary.
-2. **Snapshot/Rebuild** — reconstructs an already initialized standby using an isolated candidate.
-3. **ChangeCapture** — records durable changes on the selected primary using an engine-specific adapter.
-4. **PolicyEngine** — decides how standby data is represented.
-5. **SyncEngine** — applies captured changes to the standby and tracks lag.
+1. **NativeBackup/Restore** — produces downloadable same-engine backups and restores matching native formats.
+2. **Import** — initializes or deliberately replaces a prepared standby from the selected primary through the logical cross-engine model.
+3. **DestinationPreparation** — aborts, safety-backs-up-and-clears, or explicitly clears a non-empty standby.
+4. **Snapshot/Rebuild** — reconstructs an initialized standby using an isolated candidate.
+5. **ChangeCapture** — records durable changes on the selected primary using an engine-specific adapter.
+6. **PolicyEngine** — decides how standby data is represented.
+7. **SyncEngine** — applies captured changes to the standby and tracks lag.
 
-Import and rebuild share schema introspection, portability analysis, bounded-memory transfer and validation, but they have different destination preconditions.
+Import and rebuild share schema introspection, portability analysis, bounded-memory transfer and validation. Native backup/restore remains same-engine.
 
 ## Development environment
 
@@ -145,13 +157,14 @@ This repository is in the bootstrap phase. Interfaces, models, policies, documen
 
 1. Project skeleton, selectable topology contracts, documentation and CI.
 2. MariaDB/MySQL and SQLite physical schema inventory and portability analysis.
-3. Empty-destination import/bootstrap in both directions.
-4. Destination builders and consistent rebuilds for both directions.
-5. Engine-specific durable change capture.
-6. Continuous synchronization and reconciliation.
-7. Optional SQLite-standby clean projection.
-8. Entity-aware revision projection.
-9. Validation, lag monitoring and application compatibility tests.
-10. Manual failover and controlled recovery in either direction.
+3. Native database backup/download/restore and controlled standby clearing.
+4. Logical import/bootstrap in both directions.
+5. Destination builders and consistent rebuilds for both directions.
+6. Engine-specific durable change capture.
+7. Continuous synchronization and reconciliation.
+8. Optional SQLite-standby clean projection.
+9. Entity-aware revision projection.
+10. Validation, lag monitoring and application compatibility tests.
+11. Manual failover and controlled recovery in either direction.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/IMPORT.md](docs/IMPORT.md), [docs/SYNC_MODEL.md](docs/SYNC_MODEL.md), [docs/DEVELOPMENT_ENVIRONMENT.md](docs/DEVELOPMENT_ENVIRONMENT.md) and [AGENTS.md](AGENTS.md) before changing core behavior.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/IMPORT.md](docs/IMPORT.md), [docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md), [docs/UPSTREAM_COMPONENTS.md](docs/UPSTREAM_COMPONENTS.md), [docs/SYNC_MODEL.md](docs/SYNC_MODEL.md), [docs/DEVELOPMENT_ENVIRONMENT.md](docs/DEVELOPMENT_ENVIRONMENT.md) and [AGENTS.md](AGENTS.md) before changing core behavior.

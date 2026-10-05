@@ -24,11 +24,17 @@ This file is normative guidance for humans and AI coding agents. Architectural c
 18. **Never apply a lossy/clean projection to the authoritative primary.**
 19. **Runtime topology is deployment configuration.** The active Drupal database must be selected in `settings.php` / environment-backed settings before Config API is available. Do not move this responsibility into Drupal Config API alone.
 20. **Default replication profile is `full`.** `clean` is explicit opt-in and currently valid only for SQLite standby.
-21. **Bootstrap import is allowed only into a proven-empty destination.** Non-empty means fail; do not merge, overwrite or silently drop existing destination data.
-22. **Empty-destination import is bidirectional for the initial engine pair.** MariaDB/MySQL -> SQLite and SQLite -> MariaDB/MySQL are both product requirements.
-23. **There is no destructive force-import in the initial product.** Adding overwrite/merge semantics requires a separate ADR and explicit data-loss design.
-24. **A destination is not initialized until import validation succeeds.** A failed import must never be reported as a usable standby.
-25. **Clean import is only for SQLite standby.** Any database intended to become primary must be initialized from a `full` representation.
+21. **Non-empty standby handling is explicit.** Default is `abort`; destructive preparation requires an explicit `backup_then_clear` or `clear` policy.
+22. **Never clear the active primary.** Destructive preparation applies only to a separately resolved standby destination.
+23. **`backup_then_clear` is transactional in intent.** The safety backup must complete, be checksummed and be readable before clearing starts.
+24. **No silent merge/overwrite.** A populated destination is never merged into; clear means removing existing destination state first.
+25. **Logical import is bidirectional for the initial engine pair.** MariaDB/MySQL -> SQLite and SQLite -> MariaDB/MySQL are both requirements.
+26. **A destination is not initialized until import/restore validation succeeds.**
+27. **Clean import is only for SQLite standby.** Any database intended to become primary must be initialized from a `full` representation.
+28. **Native backup/restore is same-engine.** MySQL SQL dumps restore only to MySQL-family; SQLite database snapshots restore only to SQLite. Cross-engine movement uses DBTNG logical import.
+29. **Use upstream implementations before inventing new backup code.** Follow `docs/UPSTREAM_COMPONENTS.md`, retain provenance/license notices for copied code and prefer adapters around proven tools.
+30. **Live SQLite is never backed up by blindly copying only the main file.** Use SQLite's online backup facilities or another proven consistent snapshot mechanism, especially under WAL.
+31. **Database downloads and uploads are private sensitive artifacts.** Never stage them under public webroot or trust client-provided filenames/MIME types.
 
 ## Current product boundary
 
@@ -37,7 +43,7 @@ Initial topologies:
 - MariaDB/MySQL primary -> SQLite standby (`full` or opt-in `clean`).
 - SQLite primary -> MariaDB/MySQL standby (`full`).
 
-Both directions support bootstrap import when the destination is empty.
+Both directions support logical import. Empty destinations proceed directly; populated standbys require an explicit destination-preparation policy. Native backup/download/restore is supported for each engine in its own native format.
 
 PostgreSQL and other engines are future adapters.
 
@@ -98,9 +104,11 @@ Before mutating the server, follow [docs/DEVELOPMENT_ENVIRONMENT.md](docs/DEVELO
 4. install Drupal as the domain user through Composer;
 5. link this module through a Composer path repository;
 6. configure both database engines;
-7. exercise empty-destination import in both directions;
-8. exercise both primary topologies;
-9. record test evidence in the PR/commit notes.
+7. exercise native backup/download/restore for both engines;
+8. exercise logical import in both directions;
+9. exercise `abort`, `backup_then_clear` and `clear` destination policies on disposable standby data;
+10. exercise both primary topologies;
+11. record test evidence in the PR/commit notes.
 
 ## Change discipline
 
@@ -108,7 +116,8 @@ Every implementation commit should answer:
 
 - Which invariant does this change depend on?
 - Which failure mode is covered by tests?
-- Does this affect import, portability, consistency, topology, failover or clean-profile semantics?
+- Does this affect backup, restore, destructive destination preparation, import, portability, consistency, topology, failover or clean-profile semantics?
+- Which upstream implementation was reused or studied, and is its provenance documented?
 - Which document/ADR needs updating?
 - Was the Virtualmin integration environment used, and if not, why was it unnecessary?
 

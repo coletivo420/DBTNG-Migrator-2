@@ -29,7 +29,10 @@ final class CleanReplicationPolicyTest extends TestCase {
   }
 
   /**
+   * Provides table names and their expected clean-profile decisions.
+   *
    * @return iterable<string, array{string, \Drupal\dbtng_migrator\Model\ReplicationDecision}>
+   *   Table name and expected replication decision pairs.
    */
   public static function tablePolicyProvider(): iterable {
     yield 'cache data is disposable' => ['cache_data', ReplicationDecision::SchemaOnly];
