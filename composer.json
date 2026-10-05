@@ -1,6 +1,6 @@
 {
   "name": "coletivo420/dbtng-migrator-2",
-  "description": "Cross-database continuous standby and logical migration engine for Drupal, starting with MariaDB/MySQL to SQLite.",
+  "description": "Cross-database continuous standby and logical migration engine for Drupal with selectable MariaDB/MySQL or SQLite primary roles.",
   "type": "drupal-module",
   "license": "GPL-2.0-or-later",
   "require": {
@@ -40,7 +40,8 @@
   "config": {
     "sort-packages": true,
     "allow-plugins": {
-      "dealerdirect/phpcodesniffer-composer-installer": true
+      "dealerdirect/phpcodesniffer-composer-installer": true,
+      "symfony/runtime": true
     }
   }
 }

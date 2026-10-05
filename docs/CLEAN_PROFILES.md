@@ -2,16 +2,22 @@
 
 A clean standby is not a partial schema. Tables Drupal expects still exist; only data classified as disposable is omitted.
 
+## Default behavior
+
+`full` is the default replication profile.
+
+`clean` is an explicit opt-in profile because it intentionally omits some standby data. This keeps a new installation conservative and makes the default valid regardless of which supported engine is primary.
+
 ## Role restriction
 
-Clean projection applies **only to a standby representation**. It must never mutate or filter the authoritative primary database.
+Clean projection applies **only to a standby representation**. It must never mutate or filter the authoritative primary.
 
-In the initial product:
+Initial product:
 
-- MariaDB/MySQL primary -> SQLite standby: `full`, `clean`, and later `clean-public`.
+- MariaDB/MySQL primary -> SQLite standby: `full` or opt-in `clean`.
 - SQLite primary -> MariaDB/MySQL standby: `full` only.
 
-If SQLite itself is selected as primary, its cache/session/revision data is ordinary primary data and DBTNG does not delete it under a clean standby policy.
+If SQLite is selected as primary, its cache/session/revision data is normal authoritative data and DBTNG does not delete it under a standby policy.
 
 ## Initial `clean` defaults
 
@@ -30,12 +36,12 @@ If SQLite itself is selected as primary, its cache/session/revision data is ordi
 
 ## Drafts and revisions
 
-Draft removal cannot be implemented by declaring revision tables disposable. Drupal entities may have base, data, revision, revision-data and field tables tied together. Content Moderation can keep a published default revision while newer draft revisions exist.
+Draft removal cannot be implemented by declaring revision tables disposable. Drupal entities may have base, data, revision, revision-data and field tables tied together.
 
-Future `EntityProjectionPolicy` modes:
+Future entity-aware modes:
 
 - `all`: preserve all revisions.
-- `default_only`: preserve the current/default representation and required relational rows; remove non-default historical/draft revisions safely.
-- `published_only`: intentionally exclude unpublished-only entities; this is a sanitized standby and has a different recovery guarantee.
+- `default_only`: preserve current/default representation and required relational rows.
+- `published_only`: intentionally exclude unpublished-only entities.
 
-`default_only` is the planned default revision projection for the clean SQLite standby once entity-aware projection is implemented.
+These modes are not yet accepted runtime profiles. They require an entity-aware projection implementation and dedicated tests first.

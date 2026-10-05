@@ -49,8 +49,11 @@ final readonly class DatabaseTopology {
     return $this->standbyEngine === DatabaseEngine::Sqlite;
   }
 
-  public function supportsCleanStandby(): bool {
-    return $this->sqliteIsStandby();
+  public function supportsProfile(ReplicationProfile $profile): bool {
+    return match ($profile) {
+      ReplicationProfile::Full => TRUE,
+      ReplicationProfile::Clean => $this->sqliteIsStandby(),
+    };
   }
 
 }

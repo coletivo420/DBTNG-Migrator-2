@@ -2,29 +2,9 @@ dbtng_migrator.settings:
   type: config_object
   label: 'DBTNG Migrator settings'
   mapping:
-    primary:
-      type: mapping
-      label: 'Primary database'
-      mapping:
-        engine:
-          type: string
-          label: 'Primary database engine'
-        connection_key:
-          type: string
-          label: 'Primary Drupal database connection key'
-    standby:
-      type: mapping
-      label: 'Standby database'
-      mapping:
-        engine:
-          type: string
-          label: 'Standby database engine'
-        connection_key:
-          type: string
-          label: 'Standby Drupal database connection key'
-        profile:
-          type: string
-          label: 'Standby replication profile'
+    profile:
+      type: string
+      label: 'Standby replication profile'
     snapshot:
       type: mapping
       label: 'Snapshot settings'

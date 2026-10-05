@@ -5,12 +5,17 @@
 
 ## Context
 
-DBTNG Migrator 2 needs explicit correctness guarantees across different database engines and operational failure modes.
+A clean standby intentionally omits selected volatile data. That is useful for a compact SQLite contingency database, but it is a lossy representation and therefore must not be confused with the safe default.
 
 ## Decision
 
-Clean profiles may omit disposable data but retain required schema. Draft/revision pruning must use entity-aware projection rather than blind table exclusion.
+- `full` is the default replication profile.
+- `clean` is explicit opt-in and initially supported only for SQLite standby.
+- Clean profiles omit selected standby **data** but retain schema required by Drupal.
+- Unknown tables are copied unless explicitly classified otherwise.
+- Draft/revision pruning must use entity-aware projection rather than blind table exclusion.
+- Future `clean-public` is not a runtime profile until its entity semantics and tests are implemented.
 
 ## Consequences
 
-Implementations and tests must preserve this decision. A change that reverses it requires a new ADR and updates to `AGENTS.md` and affected operational documentation.
+New installations preserve all supported data unless the operator deliberately selects `clean`. Switching SQLite into the primary role never subjects authoritative data to a clean policy.

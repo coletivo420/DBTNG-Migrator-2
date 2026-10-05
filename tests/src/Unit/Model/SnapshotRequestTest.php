@@ -6,6 +6,7 @@ namespace Drupal\Tests\dbtng_migrator\Unit\Model;
 
 use Drupal\dbtng_migrator\Model\DatabaseEngine;
 use Drupal\dbtng_migrator\Model\DatabaseTopology;
+use Drupal\dbtng_migrator\Model\ReplicationProfile;
 use Drupal\dbtng_migrator\Model\SnapshotRequest;
 use PHPUnit\Framework\TestCase;
 
@@ -14,12 +15,19 @@ use PHPUnit\Framework\TestCase;
  */
 final class SnapshotRequestTest extends TestCase {
 
-  public function testDefaultRequestUsesCleanSqliteStandby(): void {
+  public function testDefaultRequestUsesFullProfile(): void {
     $request = new SnapshotRequest();
 
     self::assertSame(DatabaseEngine::MysqlFamily, $request->topology->primaryEngine);
     self::assertSame(DatabaseEngine::Sqlite, $request->topology->standbyEngine);
-    self::assertSame('clean', $request->profile);
+    self::assertSame(ReplicationProfile::Full, $request->profile);
+  }
+
+  public function testMysqlPrimarySupportsCleanSqliteStandby(): void {
+    $request = new SnapshotRequest(ReplicationProfile::Clean);
+
+    self::assertSame(ReplicationProfile::Clean, $request->profile);
+    self::assertTrue($request->topology->sqliteIsStandby());
   }
 
   public function testSqlitePrimarySupportsFullStandbyProfile(): void {
@@ -30,10 +38,10 @@ final class SnapshotRequestTest extends TestCase {
       'dbtng_standby',
     );
 
-    $request = new SnapshotRequest('full', TRUE, $topology);
+    $request = new SnapshotRequest(ReplicationProfile::Full, TRUE, $topology);
 
     self::assertSame(DatabaseEngine::Sqlite, $request->topology->primaryEngine);
-    self::assertSame('full', $request->profile);
+    self::assertSame(ReplicationProfile::Full, $request->profile);
   }
 
   public function testSqlitePrimaryRejectsCleanStandbyProfile(): void {
@@ -45,7 +53,7 @@ final class SnapshotRequestTest extends TestCase {
     );
 
     $this->expectException(\InvalidArgumentException::class);
-    new SnapshotRequest('clean', TRUE, $topology);
+    new SnapshotRequest(ReplicationProfile::Clean, TRUE, $topology);
   }
 
 }

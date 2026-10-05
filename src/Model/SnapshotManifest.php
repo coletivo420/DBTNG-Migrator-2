@@ -15,7 +15,7 @@ final readonly class SnapshotManifest {
     public string $createdAt,
     public DatabaseEngine $primaryEngine,
     public DatabaseEngine $standbyEngine,
-    public string $profile,
+    public ReplicationProfile $profile,
     public bool $portable,
     public bool $activatable,
     public int $tableCount,

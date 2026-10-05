@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\Tests\dbtng_migrator\Unit\Policy;
 
 use Drupal\dbtng_migrator\Model\ReplicationDecision;
+use Drupal\dbtng_migrator\Model\ReplicationProfile;
 use Drupal\dbtng_migrator\Model\TableDefinition;
 use Drupal\dbtng_migrator\Policy\CleanReplicationPolicy;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -14,6 +15,10 @@ use PHPUnit\Framework\TestCase;
  * @coversDefaultClass \Drupal\dbtng_migrator\Policy\CleanReplicationPolicy
  */
 final class CleanReplicationPolicyTest extends TestCase {
+
+  public function testPolicyId(): void {
+    self::assertSame(ReplicationProfile::Clean, (new CleanReplicationPolicy())->id());
+  }
 
   #[DataProvider('tablePolicyProvider')]
   public function testTablePolicy(string $tableName, ReplicationDecision $expected): void {

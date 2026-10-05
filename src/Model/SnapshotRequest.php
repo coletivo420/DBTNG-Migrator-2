@@ -11,23 +11,20 @@ final readonly class SnapshotRequest {
 
   public DatabaseTopology $topology;
 
-  public string $profile;
-
-  public bool $strict;
-
   public function __construct(
-    string $profile = 'clean',
-    bool $strict = TRUE,
+    public ReplicationProfile $profile = ReplicationProfile::Full,
+    public bool $strict = TRUE,
     ?DatabaseTopology $topology = NULL,
   ) {
     $this->topology = $topology ?? DatabaseTopology::default();
-    $this->profile = $profile;
-    $this->strict = $strict;
 
-    if ($profile !== 'full' && !$this->topology->supportsCleanStandby()) {
-      throw new \InvalidArgumentException(
-        'Clean replication profiles are initially supported only when SQLite is the standby database.',
-      );
+    if (!$this->topology->supportsProfile($profile)) {
+      throw new \InvalidArgumentException(sprintf(
+        'Replication profile "%s" is not supported for %s primary -> %s standby.',
+        $profile->value,
+        $this->topology->primaryEngine->label(),
+        $this->topology->standbyEngine->label(),
+      ));
     }
   }
 

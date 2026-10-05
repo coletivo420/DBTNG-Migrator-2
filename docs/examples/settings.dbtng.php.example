@@ -1,0 +1,50 @@
+<?php
+
+/**
+ * Development-only example for selecting DBTNG primary/standby roles.
+ *
+ * Include an adapted copy from settings.local.php. Never commit real secrets.
+ */
+
+$primary_engine = getenv('DBTNG_DEV_PRIMARY') ?: 'mysql';
+
+if (!in_array($primary_engine, ['mysql', 'sqlite'], TRUE)) {
+  throw new \RuntimeException('DBTNG_DEV_PRIMARY must be mysql or sqlite.');
+}
+
+$sqlite_database = getenv('DBTNG_SQLITE_DATABASE');
+if (!$sqlite_database) {
+  throw new \RuntimeException('DBTNG_SQLITE_DATABASE must be an absolute private path.');
+}
+
+$mysql = [
+  'database' => getenv('DBTNG_MYSQL_DATABASE') ?: '',
+  'username' => getenv('DBTNG_MYSQL_USERNAME') ?: '',
+  'password' => getenv('DBTNG_MYSQL_PASSWORD') ?: '',
+  'host' => getenv('DBTNG_MYSQL_HOST') ?: 'localhost',
+  'port' => getenv('DBTNG_MYSQL_PORT') ?: '3306',
+  'driver' => 'mysql',
+  'prefix' => '',
+];
+
+$sqlite = [
+  'database' => $sqlite_database,
+  'driver' => 'sqlite',
+  'prefix' => '',
+];
+
+if ($primary_engine === 'sqlite') {
+  $databases['default']['default'] = $sqlite;
+  $databases['dbtng_standby']['default'] = $mysql;
+  $standby_engine = 'mysql';
+}
+else {
+  $databases['default']['default'] = $mysql;
+  $databases['dbtng_standby']['default'] = $sqlite;
+  $standby_engine = 'sqlite';
+}
+
+$settings['dbtng_migrator']['primary_engine'] = $primary_engine;
+$settings['dbtng_migrator']['standby_engine'] = $standby_engine;
+$settings['dbtng_migrator']['primary_connection_key'] = 'default';
+$settings['dbtng_migrator']['standby_connection_key'] = 'dbtng_standby';

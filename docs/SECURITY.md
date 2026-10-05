@@ -1,14 +1,24 @@
 # Security
 
-SQLite standby files contain sensitive Drupal data and must be treated like database backups.
+Both database representations contain sensitive Drupal data and must be treated like production database backups.
 
 ## Required controls
 
-- Store standby files outside the public webroot.
-- Prefer a private directory with mode `0700` and database files with mode `0600` where supported.
-- Reject unsafe path traversal and symlink surprises in publisher code.
-- Do not log database credentials, secrets or full DSNs.
-- Keep generated manifests free of secrets.
+- Store SQLite databases/manifests outside the public webroot.
+- Prefer a private SQLite directory with mode `0700` and database files with mode `0600`.
+- Keep MariaDB/MySQL standby databases under dedicated least-privilege accounts.
+- Reject unsafe path traversal and symlink surprises in filesystem publisher code.
+- Do not log database credentials, root/sudo passwords, application secrets or full DSNs.
+- Keep manifests free of secrets.
 - Fail closed when portability or validation cannot establish correctness in strict mode.
+- Do not expose database ports remotely merely for DBTNG synchronization when source and standby are on the same host.
 
-A database snapshot is not a complete Drupal disaster-recovery backup: uploaded/private files, source code, Composer dependencies, settings and secrets need separate backup/deployment procedures.
+## Development privilege
+
+Codex may use `sudo` for the dedicated `bdtgn.toca.net.br` environment as defined in `AGENTS.md`, but the sudo/root password must be entered only into the operating system's interactive prompt.
+
+Administrative access is not permission to read or modify unrelated domains/data.
+
+## Disaster recovery scope
+
+A database standby is not a complete Drupal disaster-recovery backup. Uploaded/private files, source code, Composer dependencies, deployment settings and secrets require separate backup/deployment procedures.

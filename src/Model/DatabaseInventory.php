@@ -13,7 +13,7 @@ final readonly class DatabaseInventory {
    * @param list<\Drupal\dbtng_migrator\Model\TableDefinition> $tables
    */
   public function __construct(
-    public string $databaseType,
+    public DatabaseEngine $databaseEngine,
     public array $tables,
   ) {}
 

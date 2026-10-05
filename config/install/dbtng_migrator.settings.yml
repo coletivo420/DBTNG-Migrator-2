@@ -1,11 +1,4 @@
-primary:
-  engine: mysql
-  connection_key: default
-
-standby:
-  engine: sqlite
-  connection_key: dbtng_standby
-  profile: clean
+profile: full
 
 snapshot:
   batch_rows: 500
