@@ -33,6 +33,8 @@ command -v composer
 command -v git
 command -v mariadb || command -v mysql
 command -v sqlite3
+command -v mariadb-dump || command -v mysqldump
+command -v gzip
 
 sudo virtualmin list-domains --domain bdtgn.toca.net.br --multiline || true
 sudo virtualmin list-domains --domain toca.net.br --multiline || true
@@ -45,6 +47,7 @@ php -m | grep -Ei 'pdo|mysql|mysqli|sqlite|mbstring|xml|curl|gd|intl|openssl|zli
 composer --version
 sqlite3 --version
 mariadb --version 2>/dev/null || mysql --version
+(mariadb-dump --version 2>/dev/null || mysqldump --version) || true
 ```
 
 Also verify DNS resolution for `bdtgn.toca.net.br` before requesting Let's Encrypt.
@@ -177,7 +180,24 @@ It must map the selected engine to `$databases['default']['default']` and the ot
 
 Secrets must come from protected environment/server configuration, not repository files.
 
-## 11. Import/bootstrap and smoke testing
+## 11. Native backup / restore tests
+
+Before implementing custom dump/restore code, inspect the installed native database clients and the upstream projects listed in [UPSTREAM_COMPONENTS.md](UPSTREAM_COMPONENTS.md).
+
+Required tests:
+
+1. create/download MariaDB/MySQL `.sql.gz`;
+2. restore it into the dedicated standby database;
+3. create/download a live SQLite `.sqlite` snapshot;
+4. restore it into the dedicated SQLite standby path;
+5. repeat with populated destination using `backup_then_clear`;
+6. repeat with disposable data using explicit `clear`;
+7. verify destructive preparation refuses the active primary;
+8. verify safety backups remain private and restorable.
+
+Do not copy a live SQLite main file with `cp` as the backup implementation. Exercise WAL mode explicitly.
+
+## 12. Import/bootstrap and smoke testing
 
 The development environment must explicitly exercise the empty-destination import requirement before continuous synchronization work is considered complete.
 
@@ -220,7 +240,7 @@ For each primary topology after initialization:
 
 SQLite-primary testing must run with `full` standby profile. MariaDB/MySQL-primary testing may run both `full` and opt-in `clean`.
 
-## 12. Reset policy
+## 13. Reset policy
 
 The development site is disposable, but deletion is scoped:
 
@@ -231,7 +251,7 @@ The development site is disposable, but deletion is scoped:
 
 Do not delete or alter other Virtualmin domains, databases or user data.
 
-## 13. Evidence expected from Codex
+## 14. Evidence expected from Codex
 
 After provisioning or integration work, report:
 
@@ -240,13 +260,15 @@ After provisioning or integration work, report:
 - Drupal and Drush versions;
 - MariaDB/MySQL and SQLite versions;
 - which primary topology was tested;
+- native backup tool/backend selected for each engine;
+- backup/restore and clear policies tested;
 - commands/tests run and their exit status;
 - any package or service changed with sudo;
 - remaining failures or assumptions.
 
 Never include passwords or full DSNs in that report.
 
-## 14. Reference documentation
+## 15. Reference documentation
 
 Use installed command help as the final authority because Virtualmin versions can differ. Current upstream references:
 
@@ -257,3 +279,9 @@ Use installed command help as the final authority because Virtualmin versions ca
 - Drupal database requirements: https://www.drupal.org/docs/getting-started/system-requirements/database-server-requirements
 - Drupal PHP requirements: https://www.drupal.org/docs/getting-started/system-requirements/php-requirements
 - Drush installation/compatibility: https://www.drush.org/latest/install/
+- Drush sql:dump: https://www.drush.org/14.x/commands/sql_dump/
+- Drush sql:drop: https://www.drush.org/14.x/commands/sql_drop/
+- Backup and Migrate: https://www.drupal.org/project/backup_migrate
+- SQLite Backup: https://www.drupal.org/project/sqlite_backup
+- SQLite Online Backup API: https://www.sqlite.org/backup.html
+- PHP SQLite3::backup(): https://www.php.net/manual/en/sqlite3.backup.php

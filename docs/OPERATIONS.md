@@ -6,6 +6,8 @@ Operators must be able to observe:
 
 - configured and actually resolved primary/standby engines;
 - destination initialization state;
+- last native backup/download/restore result;
+- most recent safety backup created before a destructive clear;
 - current published standby and age;
 - captured/applied change-log sequence;
 - backlog/lag;
@@ -30,9 +32,26 @@ Import supports:
 - MariaDB/MySQL primary -> empty SQLite standby;
 - SQLite primary -> empty MariaDB/MySQL standby.
 
-A non-empty destination is an error. The initial product deliberately provides no `--force`, truncate, merge or overwrite behavior.
+A non-empty destination defaults to `abort`. Operators may explicitly choose `backup_then_clear` or `clear`; neither mode merges data, and both are restricted to the standby.
 
 After successful validation, the destination can be marked initialized and continuous sync may begin from the corresponding source change position.
+
+## Native backup and restore
+
+Planned operational commands:
+
+```bash
+drush dbtng:backup --role=primary
+drush dbtng:backup --role=standby
+drush dbtng:restore /private/backup.sql.gz
+drush dbtng:restore /private/backup.sqlite
+```
+
+Backup/download is read-only and may target either role.
+
+Restore targets the configured standby and accepts only its engine's native backup format. Use logical `dbtng:import` for cross-engine transfer.
+
+For a populated standby, the same `abort | backup_then_clear | clear` policy applies.
 
 ## Topology source
 

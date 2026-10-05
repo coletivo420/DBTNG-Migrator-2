@@ -15,9 +15,13 @@ All notable changes to DBTNG Migrator 2 will be documented here.
 - PHP 8.5 CI coverage.
 - First-class empty-destination bootstrap import requirement for MariaDB/MySQL -> SQLite and SQLite -> MariaDB/MySQL.
 - Import contracts, destination-state model and non-empty destination exception.
+- Native backup/download/restore contracts for MariaDB/MySQL and SQLite.
+- Explicit non-empty destination policies: `abort`, `backup_then_clear`, and `clear`.
+- Upstream component/provenance policy covering Backup and Migrate, SQLite Backup and Drush SQL tooling.
 
 ### Changed
 - Replication profile defaults to conservative `full`; `clean` is opt-in.
 - Runtime topology selection is documented as pre-bootstrap deployment configuration rather than Drupal Config API state.
 - Replication profiles are represented by a typed enum.
 - Database inventory uses the typed database-engine model.
+- Non-empty standby destinations may now be deliberately prepared for import/restore instead of being unconditionally rejected; `abort` remains the default.

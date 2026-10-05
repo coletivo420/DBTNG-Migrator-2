@@ -65,9 +65,32 @@ Primary and standby must use different engines in the initial product.
 
 ## Core operations
 
+### Native backup/download/restore
+
+`NativeBackupManagerInterface` creates a same-engine native artifact from either configured role.
+
+Initial native formats:
+
+- MariaDB/MySQL: SQL dump, optionally gzip-compressed;
+- SQLite: consistent SQLite database snapshot, optionally gzip-compressed.
+
+`NativeRestoreManagerInterface` restores only to the matching standby engine. Native formats are not used as cross-engine migration formats.
+
+Backup/download/restore behavior is upstream-first. See [UPSTREAM_COMPONENTS.md](UPSTREAM_COMPONENTS.md) and [BACKUP_RESTORE.md](BACKUP_RESTORE.md).
+
+### Destination preparation
+
+A non-empty standby no longer has only one possible outcome. `NonEmptyDestinationPolicy` defines:
+
+- `abort` — no mutation;
+- `backup_then_clear` — native safety backup, verify, then clear;
+- `clear` — explicitly destructive clear.
+
+`DestinationCleanerInterface` can operate only on the configured standby. Topology/identity checks must reject any attempt to clear the primary.
+
 ### Import
 
-`ImportManagerInterface` initializes a **proven-empty** standby from the configured primary.
+`ImportManagerInterface` logically imports the configured primary into a prepared standby. Empty standby destinations proceed directly; non-empty destinations require an explicit preparation policy.
 
 It uses:
 
@@ -91,8 +114,11 @@ Import supports both initial engine directions.
 ## Components
 
 - `DatabaseTopology`: immutable primary/standby engine and connection-key selection.
-- `ImportManagerInterface`: orchestrates first initialization into an empty destination.
-- `DestinationStateInspectorInterface`: proves whether an import destination is empty.
+- `NativeBackupManagerInterface`: creates native database artifacts for download/safekeeping.
+- `NativeRestoreManagerInterface`: restores same-engine native artifacts to the standby.
+- `DestinationCleanerInterface`: explicitly clears only the configured standby.
+- `ImportManagerInterface`: orchestrates logical cross-engine initialization/replacement.
+- `DestinationStateInspectorInterface`: classifies whether an import/restore destination contains state.
 - `SnapshotManagerInterface`: orchestrates a consistent rebuild.
 - `SourceSchemaIntrospectorInterface`: converts physical primary schema to DBTNG's portable model.
 - `ChangeCaptureInterface`: owns engine-specific durable primary-side change capture.
@@ -108,14 +134,15 @@ Physical schema is discovered from the configured primary database. Drupal metad
 
 ## Destination initialization safety
 
-A first import and a rebuild are not the same operation.
+Import, native restore and rebuild are distinct operations.
 
-- Import: destination must be empty and is initialized only after validation.
+- Import: logical cross-engine movement. Empty destination proceeds; populated standby requires explicit `abort`, `backup_then_clear` or `clear`.
+- Native restore: same-engine artifact restore to standby with the same destination-preparation policies.
 - Rebuild: destination is already initialized; work happens in an isolated candidate before promotion.
 
-There is no initial merge or force-overwrite path.
+There is no merge path. "Clear" means remove existing standby state first, then create a fresh destination representation.
 
-For SQLite import/rebuild, temporary database files provide natural isolation.
+For SQLite backup/import/restore/rebuild, temporary database files provide natural isolation. Live SQLite backups must use the online backup API or another consistent SQLite snapshot mechanism rather than a raw main-file copy.
 
 For MariaDB/MySQL empty import, the destination adapter must track created state and define cleanup/retry semantics. Rebuild of an initialized MariaDB/MySQL standby requires a separate isolated candidate/promotion strategy.
 

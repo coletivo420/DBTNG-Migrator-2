@@ -1,8 +1,8 @@
-# Empty-Destination Import
+# Logical Import and Destination Preparation
 
 ## Purpose
 
-DBTNG Migrator 2 supports a one-time logical import from the configured primary database into an **empty** destination.
+DBTNG Migrator 2 performs **logical cross-engine import** from the configured primary into the configured standby.
 
 Initial supported directions:
 
@@ -11,24 +11,48 @@ MariaDB/MySQL -> SQLite
 SQLite        -> MariaDB/MySQL
 ```
 
-This operation is the normal way to seed the first standby. It can also be used as the data-transfer stage of a controlled database-engine migration before a manual authority switch.
+This is the bootstrap path for creating the first standby and the data-transfer engine used for controlled cross-database migration.
 
-## Empty means empty
+Native database backup/restore is a separate same-engine operation. See [BACKUP_RESTORE.md](BACKUP_RESTORE.md).
 
-Import is intentionally conservative.
+## Destination state
+
+Import always inspects the standby before writing.
+
+### Empty destination
+
+If the destination contains no user-defined application state, import can proceed directly.
+
+For SQLite, an absent database file is also an empty destination.
+
+For MariaDB/MySQL, the target database/schema may exist while still being empty.
+
+### Populated destination
+
+A populated standby requires an explicit `NonEmptyDestinationPolicy`:
+
+- `abort` — default; do not mutate the destination.
+- `backup_then_clear` — create and verify a native safety backup, clear the standby, confirm emptiness, then import.
+- `clear` — explicitly clear the standby without a safety backup, confirm emptiness, then import.
+
+There is no merge mode.
+
+## What counts as non-empty
 
 ### SQLite destination
 
-The destination is considered empty when:
+Treat the destination as non-empty when it contains user-defined application schema objects such as Drupal/application:
 
-- the database file does not yet exist; or
-- it opens successfully and contains no user-defined schema objects.
+- tables;
+- views;
+- triggers;
+- indexes/objects not solely internal to SQLite.
 
-SQLite internal objects such as names in the `sqlite_*` namespace are not by themselves application data, but any Drupal/application table, index, trigger or view makes the destination non-empty.
+SQLite-internal `sqlite_*` objects are not by themselves Drupal application state.
 
 ### MariaDB/MySQL destination
 
-The target database/schema may already exist, but it must contain no user-defined application objects. Preflight must check at least:
+Inventory at least:
 
 - base tables;
 - views;
@@ -36,114 +60,214 @@ The target database/schema may already exist, but it must contain no user-define
 - routines/functions/procedures;
 - events where applicable.
 
-If user-defined destination state exists, import fails before writing.
+The destination-state inspector must use physical database inventory, not just Drupal module metadata.
 
-## No force/merge mode
+## Non-empty policies
 
-The initial product has no destructive import switch.
+### `abort`
 
-The following are prohibited:
+Default and non-destructive.
 
-- drop destination and continue;
-- truncate destination and continue;
-- merge rows into an existing Drupal database;
-- overwrite conflicts;
-- reinterpret a populated destination as an empty standby.
+```text
+destination non-empty
+        |
+        v
+      ABORT
+```
 
-A future merge/overwrite facility would require a separate data-loss and conflict-resolution design.
+No tables, files or other objects are changed.
+
+### `backup_then_clear`
+
+Recommended replacement workflow:
+
+```text
+destination non-empty
+        |
+        v
+native safety backup
+        |
+        v
+checksum + format/integrity verification
+        |
+        +-- failed --> ABORT, destination untouched
+        |
+        v
+clear STANDBY
+        |
+        v
+re-inventory: must be empty
+        |
+        v
+logical import
+        |
+        v
+validation
+```
+
+The safety backup must be completed and verified before the first destructive action.
+
+### `clear`
+
+Advanced destructive workflow:
+
+```text
+destination non-empty
+        |
+        v
+explicit destructive confirmation
+        |
+        v
+clear STANDBY
+        |
+        v
+re-inventory: must be empty
+        |
+        v
+logical import
+```
+
+There is deliberately no generic `--force` that silently converts `abort` into `clear`.
+
+## Never clear primary
+
+Destination preparation is scoped exclusively to the configured standby.
+
+Before a destructive action DBTNG must prove that:
+
+- the target role is standby;
+- the target connection/database/file is distinct from the active primary;
+- topology resolution is unambiguous.
+
+If DBTNG cannot prove those properties, the destructive operation fails closed.
 
 ## Operation flow
 
 ```text
-Resolve topology
-      |
-      v
-Inspect source
-      |
-      v
-Inspect destination state
-      |
-      +-- non-empty --> FAIL
-      |
-      v
-Capture consistent source position/view
-      |
-      v
+Resolve primary / standby topology
+             |
+             v
+Inspect source schema
+             |
+             v
+Inspect standby state
+             |
+      +------+-----------------------------+
+      |                                    |
+    empty                             non-empty
+      |                                    |
+      |                         +----------+----------+
+      |                         |          |          |
+      |                       abort   backup_then   clear
+      |                         |        _clear       |
+      |                         |          |          |
+      |                       FAIL      backup        |
+      |                                    |          |
+      |                                  verify       |
+      |                                    |          |
+      |                                  clear <------+
+      |                                    |
+      +---------------------------< re-check empty
+             |
+             v
+Open consistent source snapshot/view
+             |
+             v
 Portability analysis
-      |
-      v
+             |
+             v
 Create destination schema
-      |
-      v
+             |
+             v
 Bounded-memory row transfer
-      |
-      v
+             |
+             v
 Apply standby profile
-      |
-      v
+             |
+             v
 Validation
-      |
-      v
-Catch up captured changes (when sync capture exists)
-      |
-      v
-Mark destination initialized
+             |
+             v
+Catch up captured changes
+(when continuous capture is implemented)
+             |
+             v
+Mark standby initialized
 ```
 
-The destination is not a usable standby until validation succeeds.
+A destination is never considered usable merely because rows were copied. Validation is part of initialization.
 
-## Profiles
+## Replication profiles
 
-### MariaDB/MySQL primary -> SQLite destination
+### MariaDB/MySQL primary -> SQLite standby
 
-- `full`: supported and recommended for a general-purpose standby/migration target.
-- `clean`: supported only when SQLite remains a standby representation.
+- `full`: supported and recommended for a general standby or migration target.
+- `clean`: supported when SQLite remains a standby representation.
 
-### SQLite primary -> MariaDB/MySQL destination
+### SQLite primary -> MariaDB/MySQL standby
 
 - `full`: supported.
 - `clean`: not supported initially.
 
-Any destination intended to be promoted into the primary role must be initialized with `full`.
+Any imported destination that may later be promoted to primary must use `full`.
+
+## Import vs native restore
+
+### Logical import
+
+- source and destination engines are different;
+- DBTNG introspects/normalizes schema and streams logical row data;
+- this is how MariaDB/MySQL and SQLite migrate between one another.
+
+### Native restore
+
+- backup format and destination engine match;
+- MySQL-family SQL backup restores to MySQL-family standby;
+- SQLite database snapshot restores to SQLite standby.
+
+Do not translate a MySQL SQL dump into SQLite SQL as a substitute for DBTNG logical migration.
 
 ## Import vs rebuild
 
-Import and rebuild reuse the same underlying logical migration components but differ in preconditions.
-
 ### Import
 
-- destination must be empty;
-- intended for first initialization;
-- must refuse non-empty destination;
-- no previous valid standby needs to exist.
+- initializes or deliberately replaces a standby;
+- empty destination proceeds directly;
+- populated destination requires explicit destination preparation;
+- no merge semantics.
 
 ### Rebuild
 
-- standby may already be initialized;
-- build an isolated replacement candidate;
-- preserve the last known-good standby until the replacement validates.
+- standby is already initialized;
+- construct an isolated replacement candidate;
+- preserve the previous known-good standby until replacement validation succeeds.
 
-## Import vs sync
+## Import vs continuous sync
 
-Import transfers a complete initial database state. Continuous sync applies only after initialization and carries changes after the imported source position.
+Import establishes a complete base state. Incremental sync may begin only after that base state is validated and associated with a known source change position.
 
-The module must never start incremental synchronization against an arbitrary empty or partially imported destination and assume it is valid.
+Never start incremental synchronization against an arbitrary empty, partially imported or failed destination.
 
 ## Planned CLI
-
-CLI-first design:
 
 ```bash
 drush dbtng:import
 drush dbtng:import --profile=full
 drush dbtng:import --profile=clean
+drush dbtng:import --on-non-empty=abort
+drush dbtng:import --on-non-empty=backup_then_clear
+drush dbtng:import --on-non-empty=clear
 ```
 
-The command uses the primary and standby connections resolved from deployment topology. It does not accept a force-overwrite option.
+`abort` is the default.
 
-Before implementation is declared complete, `dbtng:import` must provide a machine-readable preflight/result mode and clear exit codes for:
+Destructive policies require the policy itself to be explicitly selected. A generic confirmation flag must not change the policy from `abort`.
 
-- non-empty destination;
+Machine-readable preflight/results must expose clear exit states for:
+
+- destination non-empty under `abort`;
+- safety backup failure;
+- destination clear failure;
 - portability rejection;
 - source failure;
 - destination failure;
@@ -151,17 +275,18 @@ Before implementation is declared complete, `dbtng:import` must provide a machin
 
 ## Failure behavior
 
-If import fails after writing begins:
+If import fails after destination preparation begins:
 
-- it must never be marked initialized;
-- logs must identify the run/snapshot UUID;
-- cleanup may remove only objects/artifacts created by that import run;
-- cleanup must never touch the source;
-- the destination adapter must leave an observable failed state if full cleanup cannot be guaranteed.
+- source remains untouched;
+- the destination is not marked initialized;
+- logs identify the run UUID;
+- cleanup removes only state created by that run;
+- a safety backup created by `backup_then_clear` is retained according to backup retention policy;
+- incomplete cleanup is reported explicitly.
 
-SQLite should normally be constructed in a temporary file and only published after validation.
+For SQLite, imports should normally build into a temporary file and publish it only after validation.
 
-MariaDB/MySQL destination implementation must explicitly track objects created by the run and define cleanup/retry behavior before beta.
+For MariaDB/MySQL, the destination adapter must track created state and define cleanup/retry behavior. A dedicated standby database may eventually use drop/recreate where permissions and policy explicitly allow it.
 
 ## Development acceptance
 
@@ -169,8 +294,14 @@ On `bdtgn.toca.net.br`, integration tests must prove:
 
 1. populated MariaDB/MySQL -> empty SQLite succeeds;
 2. populated SQLite -> empty MariaDB/MySQL succeeds;
-3. non-empty SQLite destination is rejected without mutation;
-4. non-empty MariaDB/MySQL destination is rejected without mutation;
-5. failed import is never reported as initialized;
-6. `clean` works only for SQLite standby;
-7. `full` imported destination can boot Drupal after controlled topology selection.
+3. populated SQLite + `abort` fails without mutation;
+4. populated MariaDB/MySQL + `abort` fails without mutation;
+5. populated SQLite + `backup_then_clear` creates a verified native backup before replacement;
+6. populated MariaDB/MySQL + `backup_then_clear` creates a verified native backup before replacement;
+7. `clear` works only against the configured standby;
+8. every destructive path refuses the active primary;
+9. failed imports are never reported as initialized;
+10. `clean` works only for SQLite standby;
+11. a `full` imported destination can boot Drupal after controlled topology selection.
+
+See [BACKUP_RESTORE.md](BACKUP_RESTORE.md) for native backup/restore semantics and [UPSTREAM_COMPONENTS.md](UPSTREAM_COMPONENTS.md) for implementation provenance.
