@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Drupal\dbtng_migrator\Model;
 
 /**
- * Minimal versioned metadata for a standby artifact.
+ * Minimal versioned metadata for a standby artifact/state.
  */
 final readonly class SnapshotManifest {
 
@@ -13,6 +13,8 @@ final readonly class SnapshotManifest {
     public string $format,
     public string $snapshotId,
     public string $createdAt,
+    public DatabaseEngine $primaryEngine,
+    public DatabaseEngine $standbyEngine,
     public string $profile,
     public bool $portable,
     public bool $activatable,

@@ -5,12 +5,19 @@
 
 ## Context
 
-DBTNG Migrator 2 needs explicit correctness guarantees across different database engines and operational failure modes.
+Continuous synchronization spans two different database engines and cannot rely on independent dual writes.
 
 ## Decision
 
-Continuous sync uses durable primary-side change capture plus an asynchronous, retryable SQLite applier instead of uncoordinated dual writes.
+Continuous sync uses durable **primary-side** change capture plus an asynchronous, retryable standby applier.
+
+The correctness contract is engine-neutral while capture mechanics are engine-specific:
+
+- MariaDB/MySQL primary: transactional change log/outbox or equivalent.
+- SQLite primary: transaction-coupled same-database change log or equivalent.
+
+Raw SQL strings are not replayed across engines.
 
 ## Consequences
 
-Implementations and tests must preserve this decision. A change that reverses it requires a new ADR and updates to `AGENTS.md` and affected operational documentation.
+Every primary adapter must prove that a committed source change cannot vanish silently from the synchronization pipeline. The selected primary role, not a fixed engine, determines which capture adapter is active.

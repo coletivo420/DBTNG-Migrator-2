@@ -1,18 +1,20 @@
 # Snapshot Manifest
 
-The sidecar `standby.json` is a versioned, non-secret contract describing a published standby.
+The sidecar/metadata manifest is a versioned, non-secret contract describing a published standby state.
 
 Minimum planned fields include:
 
 - manifest format version;
 - snapshot UUID and creation timestamp;
 - DBTNG, Drupal and PHP versions;
-- source and destination database families;
+- **primary database engine and connection role**;
+- **standby database engine and connection role**;
 - replication profile;
 - captured and applied change-log positions;
 - table and row totals;
 - portability/activatability flags;
 - validation results;
-- SQLite file size and SHA-256 checksum.
+- standby artifact/state identifier;
+- checksum where an artifact checksum is meaningful (for example SQLite file snapshots).
 
 Credentials, passwords, full DSNs and application secrets are forbidden. Manifest changes require format-version compatibility tests.
