@@ -6,6 +6,7 @@ namespace Drupal\Tests\dbtng_migrator\Unit\Model;
 
 use Drupal\dbtng_migrator\Model\DatabaseEngine;
 use Drupal\dbtng_migrator\Model\DatabaseTopology;
+use Drupal\dbtng_migrator\Model\ReplicationProfile;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -18,7 +19,8 @@ final class DatabaseTopologyTest extends TestCase {
 
     self::assertSame(DatabaseEngine::MysqlFamily, $topology->primaryEngine);
     self::assertSame(DatabaseEngine::Sqlite, $topology->standbyEngine);
-    self::assertTrue($topology->supportsCleanStandby());
+    self::assertTrue($topology->supportsProfile(ReplicationProfile::Full));
+    self::assertTrue($topology->supportsProfile(ReplicationProfile::Clean));
   }
 
   public function testSqliteCanBePrimary(): void {
@@ -30,7 +32,8 @@ final class DatabaseTopologyTest extends TestCase {
     );
 
     self::assertTrue($topology->sqliteIsPrimary());
-    self::assertFalse($topology->supportsCleanStandby());
+    self::assertTrue($topology->supportsProfile(ReplicationProfile::Full));
+    self::assertFalse($topology->supportsProfile(ReplicationProfile::Clean));
   }
 
   public function testSameEngineTopologyIsRejected(): void {

@@ -4,6 +4,7 @@ Long-running work is CLI/service oriented. The planned production model is a sit
 
 Operators must be able to observe:
 
+- configured and actually resolved primary/standby engines;
 - current published standby and age;
 - captured/applied change-log sequence;
 - backlog/lag;
@@ -11,4 +12,16 @@ Operators must be able to observe:
 - current replication profile;
 - last rebuild result.
 
+## Topology source
+
+Actual Drupal bootstrap connection selection is deployment configuration in `settings.php` / environment-backed settings. DBTNG must detect and report a mismatch between expected topology metadata and the actual connection drivers.
+
+Changing the primary is an operational authority transition, not a normal Config API edit.
+
+## Schema deployments
+
 Schema-changing deployments (`composer` updates, module install/uninstall and `drush updb`) must be coordinated with standby reconciliation. The exact locking/rebuild policy will be implemented before beta.
+
+## Development vs production
+
+`bdtgn.toca.net.br` is explicitly disposable integration infrastructure. Permission to reset it does not imply permission to reset or reconfigure any production Virtualmin site.

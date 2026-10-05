@@ -6,6 +6,7 @@ namespace Drupal\dbtng_migrator\Policy;
 
 use Drupal\dbtng_migrator\Contract\ReplicationPolicyInterface;
 use Drupal\dbtng_migrator\Model\ReplicationDecision;
+use Drupal\dbtng_migrator\Model\ReplicationProfile;
 use Drupal\dbtng_migrator\Model\TableDefinition;
 
 /**
@@ -28,8 +29,8 @@ final class CleanReplicationPolicy implements ReplicationPolicyInterface {
     'watchdog',
   ];
 
-  public function id(): string {
-    return 'clean';
+  public function id(): ReplicationProfile {
+    return ReplicationProfile::Clean;
   }
 
   public function tableDecision(TableDefinition $table): ReplicationDecision {

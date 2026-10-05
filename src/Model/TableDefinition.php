@@ -21,7 +21,7 @@ final readonly class TableDefinition {
     public array $primaryKey = [],
     public array $uniqueKeys = [],
     public array $indexes = [],
-    public ?string $engine = NULL,
+    public ?string $storageEngine = NULL,
     public ?string $collation = NULL,
   ) {}
 
