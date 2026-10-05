@@ -5,12 +5,34 @@ Long-running work is CLI/service oriented. The planned production model is a sit
 Operators must be able to observe:
 
 - configured and actually resolved primary/standby engines;
+- destination initialization state;
 - current published standby and age;
 - captured/applied change-log sequence;
 - backlog/lag;
-- last successful validation;
+- last successful import/rebuild validation;
 - current replication profile;
-- last rebuild result.
+- last import/rebuild result.
+
+## Initial bootstrap import
+
+A configured standby starts uninitialized.
+
+The planned operation:
+
+```bash
+drush dbtng:import
+```
+
+performs a full logical import only after proving the standby destination is empty.
+
+Import supports:
+
+- MariaDB/MySQL primary -> empty SQLite standby;
+- SQLite primary -> empty MariaDB/MySQL standby.
+
+A non-empty destination is an error. The initial product deliberately provides no `--force`, truncate, merge or overwrite behavior.
+
+After successful validation, the destination can be marked initialized and continuous sync may begin from the corresponding source change position.
 
 ## Topology source
 

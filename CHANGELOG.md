@@ -13,6 +13,8 @@ All notable changes to DBTNG Migrator 2 will be documented here.
 - Engine/topology models and validation preventing clean projection from being applied to the authoritative primary.
 - Dedicated Codex/Virtualmin development environment contract for `bdtgn.toca.net.br`.
 - PHP 8.5 CI coverage.
+- First-class empty-destination bootstrap import requirement for MariaDB/MySQL -> SQLite and SQLite -> MariaDB/MySQL.
+- Import contracts, destination-state model and non-empty destination exception.
 
 ### Changed
 - Replication profile defaults to conservative `full`; `clean` is opt-in.

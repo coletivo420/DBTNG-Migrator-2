@@ -8,6 +8,8 @@ Cover:
 
 - database topology validation;
 - replication-profile typing and topology compatibility;
+- import request validation;
+- destination empty/non-empty classification;
 - type/schema mapping;
 - policy classification;
 - manifest behavior;
@@ -31,6 +33,25 @@ Required directions:
 
 The canonical live integration host is `bdtgn.toca.net.br`.
 
+## Empty-destination import matrix
+
+For every supported direction:
+
+1. create/populate a valid Drupal source;
+2. create a truly empty destination;
+3. run import;
+4. validate normalized schema;
+5. validate row counts according to profile;
+6. boot Drupal from a `full` imported destination after controlled role selection.
+
+Rejection tests:
+
+- one existing user table -> import fails without mutation;
+- one existing view -> import fails;
+- destination with prior Drupal schema -> import fails;
+- interrupted partial import -> destination is not marked initialized;
+- retry behavior is deterministic after adapter cleanup/reset.
+
 ## Fixtures
 
 Include empty tables, no-PK tables, simple/composite keys, unique/index combinations, NULL/empty/zero distinctions, signed/unsigned numbers, numeric precision, text/blob, zero bytes, multilingual UTF-8/emoji and large datasets.
@@ -45,23 +66,25 @@ For MariaDB/MySQL primary -> SQLite standby:
 - queue, flood, key/value state and unknown tables remain copied;
 - `full` preserves all supported data.
 
-SQLite primary -> MariaDB/MySQL standby must reject `clean` until a dedicated destination policy is explicitly designed and accepted.
+SQLite primary -> MariaDB/MySQL standby must reject `clean`.
+
+An import that will later be promoted to primary must use `full`.
 
 ## Consistency/concurrency
 
-Run writers during a rebuild and prove the candidate represents one stable source snapshot plus deterministic catch-up.
+Run writers during import/rebuild and prove the destination represents one stable source snapshot plus deterministic catch-up once change capture is implemented.
 
 Test both primary engines.
 
 ## Failure injection
 
-Before beta, prove that the previous published standby survives interruption during:
+Before beta, prove safe behavior for interruption during:
 
-- schema creation;
-- mid-table transfer;
+- destination schema creation;
+- mid-table import;
 - validation;
 - catch-up;
-- immediately before promotion.
+- immediately before publication/promotion.
 
 Cover disk full, permission failure, source disconnect, stale candidates, concurrent run locking and service interruption.
 
@@ -84,10 +107,11 @@ The development environment must be able to switch between the two role assignme
 
 Do not call the project production-ready until both directions have:
 
+- empty-destination bootstrap import;
 - schema compatibility coverage;
 - consistent rebuilds;
 - durable change capture;
 - bounded-memory data transfer;
-- crash-safe standby publication/promotion;
+- crash-safe destination initialization/publication;
 - reconciliation;
 - application-level Drupal smoke tests.
