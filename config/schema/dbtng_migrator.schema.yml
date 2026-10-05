@@ -1,0 +1,44 @@
+dbtng_migrator.settings:
+  type: config_object
+  label: 'DBTNG Migrator settings'
+  mapping:
+    profile:
+      type: string
+      label: 'Replication profile'
+    snapshot:
+      type: mapping
+      label: 'Snapshot settings'
+      mapping:
+        batch_rows:
+          type: integer
+          label: 'Maximum rows per batch'
+        batch_bytes:
+          type: integer
+          label: 'Maximum bytes per batch'
+    validation:
+      type: mapping
+      label: 'Validation settings'
+      mapping:
+        integrity:
+          type: boolean
+          label: 'Run SQLite integrity check'
+        schema:
+          type: boolean
+          label: 'Validate normalized schema'
+        row_counts:
+          type: boolean
+          label: 'Validate row counts'
+    compatibility:
+      type: mapping
+      label: 'Compatibility settings'
+      mapping:
+        strict:
+          type: boolean
+          label: 'Strict portability mode'
+    retention:
+      type: mapping
+      label: 'Retention settings'
+      mapping:
+        keep:
+          type: integer
+          label: 'Number of previous valid snapshots to retain'

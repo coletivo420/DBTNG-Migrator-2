@@ -1,0 +1,12 @@
+profile: clean
+snapshot:
+  batch_rows: 500
+  batch_bytes: 4194304
+validation:
+  integrity: true
+  schema: true
+  row_counts: true
+compatibility:
+  strict: true
+retention:
+  keep: 3

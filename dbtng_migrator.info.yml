@@ -1,0 +1,6 @@
+name: DBTNG Migrator 2
+type: module
+description: 'Cross-database continuous standby and logical migration engine for Drupal.'
+package: Database
+core_version_requirement: ^11.4
+php: 8.3

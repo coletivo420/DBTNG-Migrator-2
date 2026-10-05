@@ -1,0 +1,6 @@
+services:
+  dbtng_migrator.policy.full:
+    class: Drupal\dbtng_migrator\Policy\FullReplicationPolicy
+
+  dbtng_migrator.policy.clean:
+    class: Drupal\dbtng_migrator\Policy\CleanReplicationPolicy
