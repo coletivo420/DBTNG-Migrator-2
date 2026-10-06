@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\dbtng_migrator\Backup;
 
+use Drupal\Component\Utility\Unicode;
 use Drupal\dbtng_migrator\Contract\NativeBackupAdapterInterface;
 use Drupal\dbtng_migrator\Exception\DbtngException;
 use Drupal\dbtng_migrator\Model\BackupCompression;
@@ -51,9 +52,11 @@ final class SqliteNativeBackupAdapter implements NativeBackupAdapterInterface {
       $source = new \SQLite3($sourcePath, SQLITE3_OPEN_READONLY);
       $source->enableExceptions(TRUE);
       $source->busyTimeout(5000);
+      $this->registerDrupalCollations($source);
       $destination = new \SQLite3($rawPath, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE);
       $destination->enableExceptions(TRUE);
       $destination->busyTimeout(5000);
+      $this->registerDrupalCollations($destination);
       if (!$source->backup($destination)) {
         throw new DbtngException('SQLite Online Backup API failed.');
       }
@@ -107,6 +110,20 @@ final class SqliteNativeBackupAdapter implements NativeBackupAdapterInterface {
     }
     finally {
       umask($oldUmask);
+    }
+  }
+
+  /**
+   * Registers Drupal's SQLite collation for snapshot integrity checks.
+   */
+  private function registerDrupalCollations(\SQLite3 $database): void {
+    if (!class_exists(Unicode::class)) {
+      throw new DbtngException('Drupal Unicode collation support is unavailable for the SQLite snapshot.');
+    }
+    $callback = [Unicode::class, 'strcasecmp'];
+    $registered = $database->createCollation('NOCASE_UTF8', $callback);
+    if (!$registered) {
+      throw new DbtngException('Unable to register Drupal NOCASE_UTF8 collation for SQLite backup validation.');
     }
   }
 

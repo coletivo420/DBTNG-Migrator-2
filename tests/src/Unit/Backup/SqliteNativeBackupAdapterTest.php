@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\dbtng_migrator\Unit\Backup;
 
+use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Database\Connection;
 use Drupal\dbtng_migrator\Backup\SqliteNativeBackupAdapter;
 use Drupal\dbtng_migrator\Model\BackupCompression;
@@ -38,11 +39,13 @@ final class SqliteNativeBackupAdapterTest extends TestCase {
 
   public function testGzippedOnlineBackupIncludesCommittedWalDataAndChecksum(): void {
     $writer = new \SQLite3($this->sourcePath);
+    $writer->createCollation('NOCASE_UTF8', [Unicode::class, 'strcasecmp']);
     $journalMode = $writer->querySingle('PRAGMA journal_mode=WAL');
     self::assertIsString($journalMode);
     self::assertSame('wal', strtolower($journalMode));
     $writer->exec('PRAGMA wal_autocheckpoint=0');
     $writer->exec('CREATE TABLE messages (id INTEGER PRIMARY KEY, value TEXT NOT NULL)');
+    $writer->exec('CREATE INDEX messages_value ON messages (value COLLATE NOCASE_UTF8)');
     $writer->exec("INSERT INTO messages (id, value) VALUES (1, 'committed before backup')");
     self::assertFileExists($this->sourcePath . '-wal');
 
@@ -72,6 +75,7 @@ final class SqliteNativeBackupAdapterTest extends TestCase {
     $snapshotPath = $this->directory . '/verified.sqlite';
     file_put_contents($snapshotPath, $decoded);
     $snapshot = new \SQLite3($snapshotPath, SQLITE3_OPEN_READONLY);
+    $snapshot->createCollation('NOCASE_UTF8', [Unicode::class, 'strcasecmp']);
     self::assertSame('ok', $snapshot->querySingle('PRAGMA integrity_check'));
     self::assertSame('committed before backup', $snapshot->querySingle('SELECT value FROM messages WHERE id = 1'));
     $snapshot->close();
