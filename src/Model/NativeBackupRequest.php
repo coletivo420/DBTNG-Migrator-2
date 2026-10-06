@@ -12,6 +12,7 @@ final readonly class NativeBackupRequest {
   public function __construct(
     public DatabaseRole $role = DatabaseRole::Primary,
     public BackupCompression $compression = BackupCompression::Gzip,
+    public ?string $outputDirectory = NULL,
   ) {}
 
 }

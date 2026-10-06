@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`bdtgn.toca.net.br` is the canonical disposable integration environment for DBTNG Migrator 2. It exists to exercise real Drupal 11 behavior with both MariaDB/MySQL and SQLite, including database-role switching, snapshot/rebuild logic and later continuous synchronization.
+`dbtng.toca.net.br` is the canonical disposable integration environment for DBTNG Migrator 2. It exists to exercise real Drupal 11 behavior with both MariaDB/MySQL and SQLite, including database-role switching, snapshot/rebuild logic and later continuous synchronization.
 
 This document is an execution runbook for Codex and human developers. Authorization boundaries are normative in [../AGENTS.md](../AGENTS.md).
 
@@ -36,7 +36,7 @@ command -v sqlite3
 command -v mariadb-dump || command -v mysqldump
 command -v gzip
 
-sudo virtualmin list-domains --domain bdtgn.toca.net.br --multiline || true
+sudo virtualmin list-domains --domain dbtng.toca.net.br --multiline || true
 sudo virtualmin list-domains --domain toca.net.br --multiline || true
 sudo virtualmin list-plans --name-only || true
 sudo virtualmin help create-domain
@@ -50,13 +50,13 @@ mariadb --version 2>/dev/null || mysql --version
 (mariadb-dump --version 2>/dev/null || mysqldump --version) || true
 ```
 
-Also verify DNS resolution for `bdtgn.toca.net.br` before requesting Let's Encrypt.
+Also verify DNS resolution for `dbtng.toca.net.br` before requesting Let's Encrypt.
 
 Do not assume Apache vs Nginx, PHP-FPM layout, username, home directory, MariaDB database prefix, PHP version or DNS ownership. Discover them.
 
 ## 3. Virtualmin provisioning decision
 
-If `bdtgn.toca.net.br` already exists:
+If `dbtng.toca.net.br` already exists:
 
 - confirm it is the dedicated DBTNG development domain;
 - reuse it rather than creating a duplicate;
@@ -64,8 +64,8 @@ If `bdtgn.toca.net.br` already exists:
 
 If it does not exist:
 
-- if `toca.net.br` is managed by Virtualmin, prefer a dedicated child/sub-server for `bdtgn.toca.net.br`;
-- otherwise create `bdtgn.toca.net.br` as its own Virtualmin virtual server;
+- if `toca.net.br` is managed by Virtualmin, prefer a dedicated child/sub-server for `dbtng.toca.net.br`;
+- otherwise create `dbtng.toca.net.br` as its own Virtualmin virtual server;
 - use the syntax reported by the installed `virtualmin help create-domain`; do not assume an option unsupported by that installed version;
 - enable only features needed by the test site: Unix/home directory, web, SSL/TLS, MariaDB/MySQL and log rotation; mail is unnecessary unless a future test explicitly needs it;
 - keep the installed Virtualmin plan/template defaults unless the project requires a documented override.
@@ -95,7 +95,20 @@ Request Let's Encrypt only after the hostname resolves to the server and HTTP va
 
 Do not use `--skip-warnings` to suppress a DNS/certificate conflict without understanding it.
 
-If DNS for `toca.net.br` is managed by Virtualmin, Codex may create or repair only the record(s) needed for `bdtgn.toca.net.br`.
+The `toca.net.br` zone is managed in Cloudflare. Codex may create, update or remove only DNS records for `dbtng.toca.net.br`; keep the A record DNS-only (proxy disabled), as required by the user.
+
+### Verified host baseline (2026-10-06)
+
+The deployed integration environment is:
+
+- Debian GNU/Linux 13, Virtualmin 8.3.0-1 with its Nginx plugin, Nginx 1.26.3, PHP 8.4.26 for CLI and FPM, MariaDB 11.8.6 and SQLite 3.46.1.
+- The canonical Virtualmin server and hostname are `dbtng.toca.net.br`. The `toca.net.br` DNS zone is authoritative at Cloudflare; its A record points directly to origin `45.191.204.31` with Cloudflare proxy disabled.
+- The site keeps the dedicated Unix account `bdtgn` and home `/home/bdtgn`; the Drupal project is `/home/bdtgn/apps/dbtng-site`, document root `/home/bdtgn/apps/dbtng-site/web`, and module checkout `/home/bdtgn/src/DBTNG-Migrator-2`.
+- The dedicated MariaDB database is named `bdtgn`. Its credentials remain in private owner-only files. SQLite and backup storage are under `/home/bdtgn/private/dbtng/`, outside the document root; private directories use mode `0700` and the SQLite file uses `0600`.
+- A Let's Encrypt certificate for `dbtng.toca.net.br` is installed with automatic renewal. HTTP and HTTPS were verified against the origin; HTTPS certificate validation succeeded.
+- Nginx's `www-data` account has execute-only ACL access to `/home/bdtgn` so it can traverse to the public document root and serve ACME challenge files without listing the home directory.
+
+The site was initially provisioned as `bdtgn.toca.net.br` with no public DNS record and a self-signed certificate. On 2026-10-06, the same Virtualmin server was renamed to `dbtng.toca.net.br`; its Unix account, home, database and document root were preserved. The obsolete `bdtgn.toca.net.br` Cloudflare A record was removed. Do not recreate it as the canonical integration host.
 
 ## 6. PHP and system packages
 
@@ -149,11 +162,11 @@ Set the Virtualmin document root to the Drupal project's `web` directory using t
 
 ## 9. Database resources
 
-Create a dedicated MariaDB/MySQL database owned by `bdtgn.toca.net.br` using Virtualmin. The installed command can be inspected with:
+Create a dedicated MariaDB/MySQL database owned by `dbtng.toca.net.br` using Virtualmin. The installed command can be inspected with:
 
 ```bash
 sudo virtualmin help create-database
-sudo virtualmin list-databases --domain bdtgn.toca.net.br --multiline
+sudo virtualmin list-databases --domain dbtng.toca.net.br --multiline
 ```
 
 Create the SQLite database under `<domain-home>/private/dbtng/`.
@@ -167,7 +180,7 @@ B. SQLite PRIMARY        -> MariaDB/MySQL STANDBY
 
 ## 10. Runtime topology settings
 
-Use a local, uncommitted `settings.local.php` or equivalent deployment include based on [examples/settings.dbtng.php.example](examples/settings.dbtng.php.example).
+Use a protected, uncommitted settings include based on [examples/settings.dbtng.php.example](../examples/settings.dbtng.php.example). Supply both database credential sets through the hosting platform's protected environment and select roles with `DBTNG_DEV_PRIMARY=mysql` or `DBTNG_DEV_PRIMARY=sqlite`.
 
 The development selector is:
 
@@ -247,7 +260,7 @@ The development site is disposable, but deletion is scoped:
 - development Drupal content may be reset;
 - the DBTNG development MariaDB database may be recreated;
 - development SQLite files may be deleted/recreated;
-- the `bdtgn.toca.net.br` virtual server may be recreated when necessary.
+- the `dbtng.toca.net.br` virtual server may be recreated when necessary.
 
 Do not delete or alter other Virtualmin domains, databases or user data.
 
@@ -267,6 +280,18 @@ After provisioning or integration work, report:
 - remaining failures or assumptions.
 
 Never include passwords or full DSNs in that report.
+
+### Phase B command run record
+
+Run `vendor/bin/drush dbtng:doctor`, `vendor/bin/drush dbtng:preflight`, and backups for both roles in the Drupal project as the dedicated domain user after installing the checkout through the documented Composer path repository. Validate MySQL/MariaDB dumps with `gzip -t` when compressed, a non-empty file, checksum comparison and a credential scan. Exercise SQLite backup while SQLite is in WAL mode and check the resulting snapshot with `PRAGMA integrity_check`. Never switch roles by editing module code or changing Drupal's global active connection.
+
+Record each command's exit code and tool/database versions. A successful HTTPS response proves only web reachability; it does not prove shell access, Drush bootstrap, database permissions or backup correctness.
+
+### Access observation for Phase B work
+
+On 2026-10-06, HTTPS to `dbtng.toca.net.br` returned HTTP 200 and Drupal headers. Direct SSH using the available `bdtgn` key was rejected with `Permission denied (publickey,password)` after the target host key was matched to the already known origin IP. The local protected Drush path was also not readable because `sudo -n -u bdtgn` reported that an interactive sudo password is required. No SSH host-key verification was bypassed and no server files or databases were changed. Therefore these observations do not count as a Drush/live database integration run; rerun the command matrix from an authorized domain-user shell.
+
+The first environment bootstrap installed Drupal 11.4.8 and Drush 13.8.0.0 and enabled DBTNG Migrator 2. MariaDB and SQLite were each used as the selected Drupal primary for an independent install/boot smoke test. That SQLite install is not an imported or synchronized standby; do not present it as one. Logical import, native DBTNG backup/restore and continuous synchronization remain separate integration tests when those commands are implemented.
 
 ## 15. Reference documentation
 

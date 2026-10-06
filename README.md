@@ -120,9 +120,9 @@ Reserved for a future, more aggressive SQLite standby projection that can exclud
 
 ## Core operations
 
-1. **NativeBackup/Restore** — produces downloadable same-engine backups and restores matching native formats.
-2. **Import** — initializes or deliberately replaces a prepared standby from the selected primary through the logical cross-engine model.
-3. **DestinationPreparation** — aborts, safety-backs-up-and-clears, or explicitly clears a non-empty standby.
+1. **Native backup** — creates a private same-engine backup for either configured role with checksum metadata.
+2. **Doctor and preflight** — resolve configured roles, inventory physical schemas, report destination state and strict portability findings.
+3. **Import/restore and destination preparation** — planned; not implemented yet.
 4. **Snapshot/Rebuild** — reconstructs an initialized standby using an isolated candidate.
 5. **ChangeCapture** — records durable changes on the selected primary using an engine-specific adapter.
 6. **PolicyEngine** — decides how standby data is represented.
@@ -135,14 +135,14 @@ Import and rebuild share schema introspection, portability analysis, bounded-mem
 The canonical integration environment for this project is the dedicated Virtualmin site:
 
 ```text
-https://bdtgn.toca.net.br
+https://dbtng.toca.net.br
 ```
 
 Codex is authorized to provision and maintain that development installation within the boundaries documented in [AGENTS.md](AGENTS.md) and [docs/DEVELOPMENT_ENVIRONMENT.md](docs/DEVELOPMENT_ENVIRONMENT.md). Administrative operations may use `sudo`; when the operating system requests the root/sudo password, it must be entered interactively by the human and never stored, echoed, committed or passed through chat.
 
 ## Project status
 
-This repository is in the bootstrap phase. Interfaces, models, policies, documentation and CI are being established before database introspection and synchronization implementation. **Do not deploy this branch as a production standby system yet.**
+This repository is in the early operational foundation phase. It now resolves configured primary/standby connections, inventories physical MariaDB/MySQL and SQLite schemas, inspects standby emptiness, performs conservative portability preflight, and creates same-engine native backups through Drush. **It does not yet import, restore, clear, continuously synchronize, or fail over. Do not deploy it as a production standby system.**
 
 ## Requirements
 
@@ -155,16 +155,15 @@ This repository is in the bootstrap phase. Interfaces, models, policies, documen
 
 ## Roadmap
 
-1. Project skeleton, selectable topology contracts, documentation and CI.
-2. MariaDB/MySQL and SQLite physical schema inventory and portability analysis.
-3. Native database backup/download/restore and controlled standby clearing.
-4. Logical import/bootstrap in both directions.
-5. Destination builders and consistent rebuilds for both directions.
-6. Engine-specific durable change capture.
-7. Continuous synchronization and reconciliation.
-8. Optional SQLite-standby clean projection.
-9. Entity-aware revision projection.
-10. Validation, lag monitoring and application compatibility tests.
-11. Manual failover and controlled recovery in either direction.
+1. Project skeleton, selectable topology contracts, documentation and CI. (complete)
+2. Runtime topology resolver, doctor/preflight, MariaDB/MySQL and SQLite physical inventory, destination state inspection, portability analysis, and same-engine native backups. (Phase B implementation)
+3. Controlled standby clearing, native restore and logical import/bootstrap in both directions.
+4. Destination builders and consistent rebuilds for both directions.
+5. Engine-specific durable change capture.
+6. Continuous synchronization and reconciliation.
+7. Optional SQLite-standby clean projection.
+8. Entity-aware revision projection.
+9. Validation, lag monitoring and application compatibility tests.
+10. Manual failover and controlled recovery in either direction.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/IMPORT.md](docs/IMPORT.md), [docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md), [docs/UPSTREAM_COMPONENTS.md](docs/UPSTREAM_COMPONENTS.md), [docs/SYNC_MODEL.md](docs/SYNC_MODEL.md), [docs/DEVELOPMENT_ENVIRONMENT.md](docs/DEVELOPMENT_ENVIRONMENT.md) and [AGENTS.md](AGENTS.md) before changing core behavior.

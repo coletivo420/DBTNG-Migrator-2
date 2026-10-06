@@ -36,22 +36,20 @@ A non-empty destination defaults to `abort`. Operators may explicitly choose `ba
 
 After successful validation, the destination can be marked initialized and continuous sync may begin from the corresponding source change position.
 
-## Native backup and restore
+## Native backup (Phase B)
 
-Planned operational commands:
+Available backup commands:
 
 ```bash
 drush dbtng:backup --role=primary
 drush dbtng:backup --role=standby
-drush dbtng:restore /private/backup.sql.gz
-drush dbtng:restore /private/backup.sqlite
 ```
 
-Backup/download is read-only and may target either role.
+`dbtng:doctor` reports resolved roles, engines, versions and tool availability without printing credentials. `dbtng:preflight` performs read-only connection checks, physical inventories, destination-state inspection and strict portability analysis. `dbtng:backup` is read-only and may target either role. It stores output below Drupal's configured private path by default.
 
-Restore targets the configured standby and accepts only its engine's native backup format. Use logical `dbtng:import` for cross-engine transfer.
+Restore targets the configured standby and accepts only its engine's native backup format. This command is planned but not implemented. Use logical `dbtng:import` for cross-engine transfer once available.
 
-For a populated standby, the same `abort | backup_then_clear | clear` policy applies.
+Destination preparation and `abort | backup_then_clear | clear` policies are not operational yet; no clearing or restore command is available.
 
 ## Topology source
 
@@ -65,4 +63,4 @@ Schema-changing deployments (`composer` updates, module install/uninstall and `d
 
 ## Development vs production
 
-`bdtgn.toca.net.br` is explicitly disposable integration infrastructure. Permission to reset it does not imply permission to reset or reconfigure any production Virtualmin site.
+`dbtng.toca.net.br` is explicitly disposable integration infrastructure. Permission to reset it does not imply permission to reset or reconfigure any production Virtualmin site.

@@ -20,6 +20,11 @@ final readonly class ColumnDefinition {
     public ?int $precision = NULL,
     public ?int $scale = NULL,
     public bool $autoIncrement = FALSE,
+    public bool $generated = FALSE,
+    public ?string $generatedExpression = NULL,
+    public ?string $charset = NULL,
+    public ?string $collation = NULL,
+    public bool $hidden = FALSE,
   ) {}
 
 }

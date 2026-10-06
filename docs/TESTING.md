@@ -20,6 +20,14 @@ Cover:
 - path/candidate validation;
 - publication state;
 - exception mapping.
+- both physical schema introspectors and MySQL catalog prefix isolation;
+- topology resolution in both primary directions;
+- destination empty/non-empty reasons;
+- strict portability blockers and review warnings;
+- native backup checksum, gzip, secret-free argv, temporary credential cleanup and process failure;
+- live SQLite WAL snapshot and integrity validation.
+
+The unit suite uses a local SQLite database and mocked MySQL information-schema results. These tests validate adapters and model mapping; they are not substitutes for testing the protected Virtualmin installation or a live MySQL-family server.
 
 ### CI compatibility
 
@@ -34,7 +42,7 @@ Required directions:
 - SQLite 3.45+ -> MariaDB 10.6+
 - SQLite 3.45+ -> MySQL 8.0+
 
-The canonical live integration host is `bdtgn.toca.net.br`.
+The canonical live integration host is `dbtng.toca.net.br`.
 
 ## Native backup / restore matrix
 

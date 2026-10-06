@@ -7,11 +7,11 @@
 
 DBTNG requires real Drupal boot tests against MariaDB/MySQL and SQLite in both primary roles. Unit tests and generic CI cannot fully exercise web-server, PHP, permissions, filesystem, Virtualmin and application compatibility behavior.
 
-The user has authorized Codex to maintain a dedicated development installation at `bdtgn.toca.net.br`, including sudo/root-backed Virtualmin operations when required.
+The user has authorized Codex to maintain a dedicated development installation at `dbtng.toca.net.br`, including sudo/root-backed Virtualmin operations when required.
 
 ## Decision
 
-`bdtgn.toca.net.br` is the canonical disposable live integration site.
+`dbtng.toca.net.br` is the canonical disposable live integration site.
 
 Codex may provision and maintain that site under the explicit scope in `AGENTS.md` and the runbook in `docs/DEVELOPMENT_ENVIRONMENT.md`.
 

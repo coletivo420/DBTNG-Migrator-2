@@ -49,7 +49,7 @@ PostgreSQL and other engines are future adapters.
 
 ## Authorized development environment
 
-The canonical live development target is **`bdtgn.toca.net.br`** on the user's Virtualmin server.
+The canonical live development target is **`dbtng.toca.net.br`** on the user's Virtualmin server.
 
 Codex is explicitly authorized to create, configure, repair, reset and reinstall the dedicated development site for this project, subject to these boundaries.
 
@@ -61,14 +61,14 @@ Codex may:
 - run read-only Virtualmin discovery commands;
 - use `sudo` for project-required administrative operations;
 - run `sudo -v` and allow the terminal to prompt the human for the sudo/root password when required;
-- create or manage the Virtualmin virtual server/sub-server for exactly `bdtgn.toca.net.br`;
+- create or manage the Virtualmin virtual server/sub-server for exactly `dbtng.toca.net.br`;
 - create dedicated MariaDB/MySQL databases/users owned by that development virtual server;
 - create private SQLite files/directories for this development site;
 - configure the site's PHP version, PHP-FPM/web settings, document root, TLS certificate and project-local scheduled services;
-- add only the DNS record(s) required for `bdtgn.toca.net.br` when the corresponding zone is managed locally;
+- manage only DNS record(s) for `dbtng.toca.net.br` in the authoritative Cloudflare zone; keep the DNS record unproxied as explicitly required by the user;
 - install a **specific missing package** required for this development site after inspecting current packages;
 - reload/restart a service when required by a validated configuration change;
-- destroy/recreate **development data belonging only to `bdtgn.toca.net.br`** when tests require a clean environment.
+- destroy/recreate **development data belonging only to `dbtng.toca.net.br`** when tests require a clean environment.
 
 ### Privilege and secret rules
 
@@ -83,7 +83,7 @@ Codex may:
 
 Without separate explicit permission, Codex must not:
 
-- modify, delete or reconfigure any Virtualmin domain other than `bdtgn.toca.net.br`;
+- modify, delete or reconfigure any Virtualmin domain other than `dbtng.toca.net.br`;
 - delete or repurpose the parent `toca.net.br` virtual server;
 - alter unrelated DNS records;
 - reset global MariaDB/MySQL root credentials;

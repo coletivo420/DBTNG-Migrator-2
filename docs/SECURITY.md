@@ -19,7 +19,7 @@ Both database representations contain sensitive Drupal data and must be treated 
 
 ## Development privilege
 
-Codex may use `sudo` for the dedicated `bdtgn.toca.net.br` environment as defined in `AGENTS.md`, but the sudo/root password must be entered only into the operating system's interactive prompt.
+Codex may use `sudo` for the dedicated `dbtng.toca.net.br` environment as defined in `AGENTS.md`, but the sudo/root password must be entered only into the operating system's interactive prompt.
 
 Administrative access is not permission to read or modify unrelated domains/data.
 

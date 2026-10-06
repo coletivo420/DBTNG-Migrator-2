@@ -16,10 +16,15 @@ final readonly class DatabaseInventory {
    *   Database engine represented by this inventory.
    * @param list<\Drupal\dbtng_migrator\Model\TableDefinition> $tables
    *   Physical tables discovered in the database.
+   * @param list<\Drupal\dbtng_migrator\Model\DatabaseObjectDefinition> $objects
+   *   Views, triggers, routines and other user-defined objects.
    */
   public function __construct(
     public DatabaseEngine $databaseEngine,
     public array $tables,
+    public array $objects = [],
+    public ?string $serverProduct = NULL,
+    public ?string $serverVersion = NULL,
   ) {}
 
   public function tableCount(): int {

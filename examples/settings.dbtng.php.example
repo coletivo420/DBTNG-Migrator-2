@@ -1,0 +1,61 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Example deployment settings for selecting either supported database role.
+ *
+ * Copy the relevant assignments into a protected settings include and supply
+ * the required DBTNG_* environment variables through the hosting platform.
+ * Do not commit the populated copy or database credentials.
+ */
+$requiredEnvironmentValue = static function (string $name): string {
+  $value = getenv($name);
+  if (!is_string($value) || $value === '') {
+    throw new RuntimeException(sprintf('Required environment variable %s is missing.', $name));
+  }
+  return $value;
+};
+
+$selectedPrimary = strtolower((string) (getenv('DBTNG_DEV_PRIMARY') ?: 'mysql'));
+if (!in_array($selectedPrimary, ['mysql', 'sqlite'], TRUE)) {
+  throw new RuntimeException('DBTNG_DEV_PRIMARY must be mysql or sqlite.');
+}
+
+$mysqlConnection = [
+  'database' => $requiredEnvironmentValue('DBTNG_MYSQL_DATABASE'),
+  'username' => $requiredEnvironmentValue('DBTNG_MYSQL_USERNAME'),
+  'password' => $requiredEnvironmentValue('DBTNG_MYSQL_PASSWORD'),
+  'host' => getenv('DBTNG_MYSQL_HOST') ?: 'localhost',
+  'port' => getenv('DBTNG_MYSQL_PORT') ?: '3306',
+  'driver' => 'mysql',
+  'namespace' => 'Drupal\\Core\\Database\\Driver\\mysql',
+  'prefix' => getenv('DBTNG_MYSQL_PREFIX') ?: '',
+];
+$sqliteConnection = [
+  'database' => $requiredEnvironmentValue('DBTNG_SQLITE_PATH'),
+  'driver' => 'sqlite',
+  'namespace' => 'Drupal\\sqlite\\Driver\\Database\\sqlite',
+  'prefix' => '',
+];
+
+if ($selectedPrimary === 'mysql') {
+  $databases['default']['default'] = $mysqlConnection;
+  $databases['dbtng_standby']['default'] = $sqliteConnection;
+  $settings['dbtng_migrator'] = [
+    'primary_connection_key' => 'default',
+    'standby_connection_key' => 'dbtng_standby',
+    'primary_engine' => 'mysql',
+    'standby_engine' => 'sqlite',
+  ];
+}
+else {
+  $databases['default']['default'] = $sqliteConnection;
+  $databases['dbtng_standby']['default'] = $mysqlConnection;
+  $settings['dbtng_migrator'] = [
+    'primary_connection_key' => 'default',
+    'standby_connection_key' => 'dbtng_standby',
+    'primary_engine' => 'sqlite',
+    'standby_engine' => 'mysql',
+  ];
+}
