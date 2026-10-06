@@ -81,7 +81,7 @@ final class SqliteChangeCaptureAdapterTest extends DrupalDatabaseUnitTestCase {
 
     $adapter->uninstall($connection);
     self::assertFalse($adapter->status($connection, $inventory)->installed);
-    self::assertSame(1, (int) $connection->query('SELECT COUNT(*) FROM items')?->fetchField());
+    self::assertSame(1, (int) $connection->query('SELECT COUNT(*) FROM no_key')?->fetchField());
   }
 
 }
