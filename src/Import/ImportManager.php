@@ -118,8 +118,9 @@ final class ImportManager implements ImportManagerInterface {
       $batchBytes = max(1024, (int) ($settings->get('snapshot.batch_bytes') ?? 4194304));
       $transferStats = $this->transfer->transfer($source, $candidate, $inventory, $request->profile, $batchRows, $batchBytes);
 
+      $indexWarnings = 0;
       if ($candidate->driver() === 'mysql') {
-        $this->mysqlBuilder->createIndexesAndConstraints($candidate, $inventory);
+        $indexWarnings = $this->mysqlBuilder->createIndexesAndConstraints($candidate, $inventory);
       }
       else {
         $this->sqliteBuilder->createIndexes($candidate, $inventory);
@@ -164,7 +165,7 @@ final class ImportManager implements ImportManagerInterface {
         $standbyHash,
         $transferStats['bytes'],
         $peakMemory,
-        $report->countBySeverity('warning'),
+        $report->countBySeverity('warning') + $indexWarnings,
         $preparation->safetyBackup?->path,
         $preparation->safetyBackup?->sha256,
         $preparation->previousState->value,
