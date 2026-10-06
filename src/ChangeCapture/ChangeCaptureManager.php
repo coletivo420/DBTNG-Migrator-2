@@ -28,7 +28,8 @@ final class ChangeCaptureManager implements ChangeCaptureInterface {
   public function install(): ChangeCaptureStatus {
     $lock = $this->operationLock->acquire('capture_install');
     try {
-      [$adapter, $database, $inventory] = $this->context();
+      [$adapter, $database] = $this->adapterAndDatabase();
+      $inventory = $this->schemas->inspect($database->connection);
       return $adapter->install($database->connection, $inventory);
     }
     finally {
@@ -39,7 +40,7 @@ final class ChangeCaptureManager implements ChangeCaptureInterface {
   public function uninstall(): void {
     $lock = $this->operationLock->acquire('capture_uninstall');
     try {
-      [$adapter, $database] = $this->context();
+      [$adapter, $database] = $this->adapterAndDatabase();
       $adapter->uninstall($database->connection);
     }
     finally {
@@ -52,29 +53,29 @@ final class ChangeCaptureManager implements ChangeCaptureInterface {
   }
 
   public function status(): ChangeCaptureStatus {
-    [$adapter, $database, $inventory] = $this->context();
+    [$adapter, $database] = $this->adapterAndDatabase();
+    $inventory = $this->schemas->inspect($database->connection);
     return $adapter->status($database->connection, $inventory);
   }
 
   public function pending(int $limit = 500): array {
-    [$adapter, $database] = $this->context();
+    [$adapter, $database] = $this->adapterAndDatabase();
     return $adapter->pending($database->connection, $limit);
   }
 
   public function acknowledge(array $eventIds): void {
-    [$adapter, $database] = $this->context();
+    [$adapter, $database] = $this->adapterAndDatabase();
     $adapter->acknowledge($database->connection, $eventIds);
   }
 
   /**
-   * @return array{0: \Drupal\dbtng_migrator\Contract\ChangeCaptureAdapterInterface, 1: \Drupal\dbtng_migrator\Model\ResolvedDatabase, 2: \Drupal\dbtng_migrator\Model\DatabaseInventory}
+   * @return array{0: \Drupal\dbtng_migrator\Contract\ChangeCaptureAdapterInterface, 1: \Drupal\dbtng_migrator\Model\ResolvedDatabase}
    */
-  private function context(): array {
+  private function adapterAndDatabase(): array {
     $resolved = $this->resolver->resolve();
-    $inventory = $this->schemas->inspect($resolved->primary->connection);
     foreach ([$this->mysql, $this->sqlite] as $adapter) {
       if ($adapter->supports($resolved->primary->engine)) {
-        return [$adapter, $resolved->primary, $inventory];
+        return [$adapter, $resolved->primary];
       }
     }
     throw new DbtngException('No durable change-capture adapter supports the selected primary.');

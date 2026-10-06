@@ -11,6 +11,7 @@ use Drupal\dbtng_migrator\Model\ChangeIdentityKind;
 use Drupal\dbtng_migrator\Model\ChangeOperation;
 use Drupal\dbtng_migrator\Model\ColumnDefinition;
 use Drupal\dbtng_migrator\Model\DatabaseEngine;
+use Drupal\dbtng_migrator\Model\DatabaseObjectDefinition;
 use Drupal\dbtng_migrator\Model\DatabaseInventory;
 use Drupal\dbtng_migrator\Model\TableDefinition;
 use Drupal\dbtng_migrator\Source\Sqlite\SqliteSchemaIntrospector;
@@ -75,7 +76,7 @@ final class SqliteChangeCaptureAdapterTest extends DrupalDatabaseUnitTestCase {
     ));
     self::assertSame([], array_values(array_filter(
       $visible->objects,
-      static fn ($object): bool => str_starts_with($object->name, CaptureSchema::TRIGGER_PREFIX),
+      static fn (DatabaseObjectDefinition $object): bool => str_starts_with($object->name, CaptureSchema::TRIGGER_PREFIX),
     )));
 
     $adapter->uninstall($connection);
