@@ -81,6 +81,9 @@ final class ImportCommand extends Command {
     $output->writeln('Schema validation: PASS');
     $output->writeln('Row-count validation: PASS');
     $output->writeln('Peak PHP memory: ' . $manifest->peakMemoryBytes);
+    if ($manifest->manifestPath !== NULL) {
+      $output->writeln('Manifest: ' . $manifest->manifestPath);
+    }
     $output->writeln($manifest->activatable ? 'Result: INITIALIZED (full; activatable after controlled role switch)' : 'Result: INITIALIZED (clean; standby-only)');
     return Command::SUCCESS;
   }

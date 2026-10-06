@@ -71,6 +71,7 @@ final class RestoreCommand extends Command {
       $output->writeln('Safety backup SHA-256: ' . $result->preparation->safetyBackup->sha256);
     }
     $output->writeln('Validation: PASS');
+    $output->writeln('Manifest: ' . $result->manifestPath);
     return Command::SUCCESS;
   }
 

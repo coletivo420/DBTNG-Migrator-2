@@ -97,6 +97,10 @@ services:
       - '@dbtng_migrator.schema.manager'
       - '@dbtng_migrator.restore.mysql'
       - '@dbtng_migrator.restore.sqlite'
+      - '@dbtng_migrator.manifest_store'
+
+  dbtng_migrator.manifest_store:
+    class: Drupal\dbtng_migrator\Manifest\StandbyManifestStore
 
   dbtng_migrator.import.type_mapper:
     class: Drupal\dbtng_migrator\Schema\ImportTypeMapper
@@ -133,6 +137,7 @@ services:
       - '@dbtng_migrator.import.row_transfer'
       - '@Drupal\dbtng_migrator\Policy\CleanReplicationPolicy'
       - '@config.factory'
+      - '@dbtng_migrator.manifest_store'
 
   'Drupal\dbtng_migrator\Connection\DatabaseTopologyResolver':
     alias: dbtng_migrator.topology_resolver

@@ -23,6 +23,7 @@ use Drupal\dbtng_migrator\Model\ReplicationDecision;
 use Drupal\dbtng_migrator\Model\ReplicationProfile;
 use Drupal\dbtng_migrator\Model\SnapshotManifest;
 use Drupal\dbtng_migrator\Policy\CleanReplicationPolicy;
+use Drupal\dbtng_migrator\Manifest\StandbyManifestStore;
 use Drupal\dbtng_migrator\Schema\MysqlSchemaBuilder;
 use Drupal\dbtng_migrator\Schema\PortabilityAnalyzer;
 use Drupal\dbtng_migrator\Schema\SchemaIntrospectionManager;
@@ -46,6 +47,7 @@ final class ImportManager implements ImportManagerInterface {
     private readonly RowTransfer $transfer,
     private readonly CleanReplicationPolicy $cleanPolicy,
     private readonly ConfigFactoryInterface $configFactory,
+    private readonly StandbyManifestStore $manifestStore,
   ) {}
 
   public function import(ImportRequest $request): SnapshotManifest {
@@ -151,7 +153,7 @@ final class ImportManager implements ImportManagerInterface {
         }
       }
 
-      return new SnapshotManifest(
+      $manifest = new SnapshotManifest(
         'dbtng-logical-import-v1',
         bin2hex(random_bytes(16)),
         gmdate(DATE_ATOM),
@@ -170,6 +172,48 @@ final class ImportManager implements ImportManagerInterface {
         $preparation->safetyBackup?->sha256,
         $preparation->previousState->value,
         $preparation->policy->value,
+      );
+      $manifestPath = $this->manifestStore->write($initial->standby->identity, [
+        'snapshot_id' => $manifest->snapshotId,
+        'created_at' => $manifest->createdAt,
+        'source_role' => 'primary',
+        'source_engine' => $manifest->primaryEngine->value,
+        'destination_role' => 'standby',
+        'destination_engine' => $manifest->standbyEngine->value,
+        'profile' => $manifest->profile->value,
+        'portable' => $manifest->portable,
+        'activatable' => $manifest->activatable,
+        'table_count' => $manifest->tableCount,
+        'row_count' => $manifest->rowCount,
+        'sha256' => $manifest->sha256,
+        'bytes_transferred' => $manifest->bytesTransferred,
+        'peak_memory_bytes' => $manifest->peakMemoryBytes,
+        'portability_warnings' => $manifest->portabilityWarnings,
+        'safety_backup_sha256' => $manifest->safetyBackupSha256,
+        'destination_policy' => $manifest->destinationPolicy,
+        'previous_destination_state' => $manifest->previousDestinationState,
+        'validation' => ['schema' => 'pass', 'row_counts' => 'pass', 'engine_integrity' => 'pass'],
+      ]);
+      return new SnapshotManifest(
+        $manifest->format,
+        $manifest->snapshotId,
+        $manifest->createdAt,
+        $manifest->primaryEngine,
+        $manifest->standbyEngine,
+        $manifest->profile,
+        $manifest->portable,
+        $manifest->activatable,
+        $manifest->tableCount,
+        $manifest->rowCount,
+        $manifest->sha256,
+        $manifest->bytesTransferred,
+        $manifest->peakMemoryBytes,
+        $manifest->portabilityWarnings,
+        $manifest->safetyBackupPath,
+        $manifest->safetyBackupSha256,
+        $manifest->previousDestinationState,
+        $manifest->destinationPolicy,
+        $manifestPath,
       );
     }
     catch (\Throwable $exception) {

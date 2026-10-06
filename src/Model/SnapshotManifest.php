@@ -28,6 +28,7 @@ final readonly class SnapshotManifest {
     public ?string $safetyBackupSha256 = NULL,
     public string $previousDestinationState = 'empty',
     public string $destinationPolicy = 'abort',
+    public ?string $manifestPath = NULL,
   ) {}
 
 }

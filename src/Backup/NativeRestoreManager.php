@@ -15,6 +15,7 @@ use Drupal\dbtng_migrator\Model\DatabaseTopology;
 use Drupal\dbtng_migrator\Model\DestinationState;
 use Drupal\dbtng_migrator\Model\NativeRestoreRequest;
 use Drupal\dbtng_migrator\Model\NativeRestoreResult;
+use Drupal\dbtng_migrator\Manifest\StandbyManifestStore;
 
 /**
  * Validates same-engine native restores and applies the standby policy. */
@@ -27,6 +28,7 @@ final class NativeRestoreManager implements NativeRestoreManagerInterface {
     private readonly SchemaIntrospectionManager $schemaIntrospector,
     private readonly MysqlNativeRestoreAdapter $mysql,
     private readonly SqliteNativeRestoreAdapter $sqlite,
+    private readonly StandbyManifestStore $manifestStore,
   ) {}
 
   public function restore(DatabaseTopology $topology, NativeRestoreRequest $request): NativeRestoreResult {
@@ -62,7 +64,30 @@ final class NativeRestoreManager implements NativeRestoreManagerInterface {
         throw new DbtngException(sprintf('Native restore validation did not find the Drupal table "%s".', $requiredTail));
       }
     }
-    return new NativeRestoreResult($after->standby->engine, $request->format, $preparation);
+    $manifestPath = $this->manifestStore->write($after->standby->identity, [
+      'snapshot_id' => bin2hex(random_bytes(16)),
+      'created_at' => gmdate(DATE_ATOM),
+      'operation' => 'native_restore',
+      'source_role' => 'backup_artifact',
+      'source_engine' => $request->format->databaseEngine()->value,
+      'destination_role' => 'standby',
+      'destination_engine' => $after->standby->engine->value,
+      'profile' => $after->profile->value,
+      'portable' => TRUE,
+      'activatable' => !$after->profile->isLossyProjection(),
+      'table_count' => count($inventory->tables),
+      'row_count' => NULL,
+      'artifact_format' => $request->format->value,
+      'artifact_bytes' => filesize($request->backupPath) ?: 0,
+      'artifact_sha256' => hash_file('sha256', $request->backupPath) ?: NULL,
+      'destination_policy' => $request->nonEmptyPolicy->value,
+      'previous_destination_state' => $preparation->previousState->value,
+      'validation' => [
+        'schema' => 'pass',
+        'integrity' => $after->standby->engine === DatabaseEngine::Sqlite ? 'pass' : 'not_available',
+      ],
+    ]);
+    return new NativeRestoreResult($after->standby->engine, $request->format, $preparation, $manifestPath);
   }
 
   private function sameTopology(DatabaseTopology $expected, DatabaseTopology $actual): bool {

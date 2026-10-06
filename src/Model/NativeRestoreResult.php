@@ -12,6 +12,7 @@ final readonly class NativeRestoreResult {
     public DatabaseEngine $engine,
     public NativeBackupFormat $format,
     public DestinationPreparationResult $preparation,
+    public string $manifestPath,
   ) {}
 
 }
