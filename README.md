@@ -124,7 +124,7 @@ Reserved for a future, more aggressive SQLite standby projection that can exclud
 2. **Doctor and preflight** — resolve configured roles, inventory physical schemas, report destination state and strict portability findings.
 3. **Import/restore and destination preparation** — implemented in Phase C.
 4. **Snapshot/Rebuild** — reconstructs an initialized standby using an isolated candidate.
-5. **ChangeCapture** — records durable changes on the selected primary using an engine-specific adapter.
+5. **ChangeCapture** — Phase E1 installs engine-specific row triggers on the selected primary and records durable dirty-table/dirty-key events without replaying raw SQL.
 6. **PolicyEngine** — decides how standby data is represented.
 7. **SyncEngine** — applies captured changes to the standby and tracks lag.
 
@@ -142,7 +142,7 @@ Codex is authorized to provision and maintain that development installation with
 
 ## Project status
 
-Phases A through C provide topology resolution, physical inventory, portability preflight, native backup/restore, destination preparation and bidirectional logical import. Phase D implements isolated standby rebuild candidates, controlled publication, manifests, locking and read-only reconciliation; the implementation is on `feat/phase-d-rebuild-reconciliation` pending CI and review. Live MariaDB-to-SQLite FULL, SQLite-to-MariaDB FULL and MariaDB-to-SQLite CLEAN rebuilds have passed on the development host. Continuous change capture, continuous synchronization and automatic failover remain out of scope.
+Phases A through D are merged and live-validated: topology resolution, physical inventory, backup/restore, bidirectional logical import, isolated rebuild candidates, controlled publication and read-only reconciliation are operational. Phase E1 adds durable trigger-based primary-side change capture, but does not yet apply captured events to the standby. Continuous synchronization and automatic failover remain out of scope.
 
 ## Requirements
 
@@ -156,10 +156,10 @@ Phases A through C provide topology resolution, physical inventory, portability 
 ## Roadmap
 
 1. Project skeleton, selectable topology contracts, documentation and CI. (complete)
-2. Runtime topology resolver, doctor/preflight, MariaDB/MySQL and SQLite physical inventory, destination state inspection, portability analysis, and same-engine native backups. (implemented and live-validated; CI/merge pending)
-3. Controlled standby clearing, native restore and logical import/bootstrap in both directions. (implemented and live-validated; CI/merge pending)
-4. Candidate-based rebuild, publication and profile-aware reconciliation. (implemented; CI/review pending)
-5. Engine-specific durable change capture.
+2. Runtime topology resolver, doctor/preflight, MariaDB/MySQL and SQLite physical inventory, destination state inspection, portability analysis, and same-engine native backups. (complete)
+3. Controlled standby clearing, native restore and logical import/bootstrap in both directions. (complete)
+4. Candidate-based rebuild, publication and profile-aware reconciliation. (complete)
+5. Engine-specific durable change capture. (Phase E1 implementation in progress)
 6. Continuous synchronization and reconciliation.
 7. Optional SQLite-standby clean projection.
 8. Entity-aware revision projection.

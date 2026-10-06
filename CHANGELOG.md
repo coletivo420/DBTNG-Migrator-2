@@ -5,6 +5,8 @@ All notable changes to DBTNG Migrator 2 will be documented here.
 ## Unreleased
 
 ### Added
+- Durable primary-side change-capture foundation for MariaDB/MySQL and SQLite using transaction-coupled row triggers and a reserved internal event log.
+- `dbtng:capture:install` and `dbtng:capture:status` Drush commands; capture events use primary-key JSON when safely addressable and table-dirty fallback otherwise.
 - Candidate-based standby rebuild with SQLite generation publication, same-schema MySQL-family staging, pre-publication write fencing, read-only reconciliation and streamed row-content drift detection.
 - Shared operation locking and injected rebuild failure points; versioned, secret-free generation manifests.
 - Runtime topology resolver and `dbtng:doctor`, `dbtng:preflight` and `dbtng:backup` Drush commands.
@@ -26,6 +28,7 @@ All notable changes to DBTNG Migrator 2 will be documented here.
 - Upstream component/provenance policy covering Backup and Migrate, SQLite Backup and Drush SQL tooling.
 
 ### Changed
+- Capture event IDs are explicitly treated as durable record identifiers rather than commit-order watermarks; future application must acknowledge exact applied event IDs.
 - Phase status now reflects implemented topology, inventory, backup, standby clearing, native restore and bidirectional logical bootstrap import; continuous synchronization remains unimplemented.
 - Renamed the canonical Virtualmin integration host to `dbtng.toca.net.br`, preserving the dedicated site's Unix account, home, database and document root.
 - SQLite online snapshots register Drupal's `NOCASE_UTF8` collation before integrity checks so Drupal indexes validate correctly.

@@ -117,9 +117,17 @@ Import supports both initial engine directions.
 
 `SnapshotManagerInterface` reconstructs an already initialized standby. It uses an isolated candidate and never destroys the last valid standby before replacement validation succeeds.
 
+### Durable change capture (Phase E1)
+
+`ChangeCaptureInterface` now resolves the selected primary and delegates to a MariaDB/MySQL or SQLite trigger adapter. The primary owns a reserved `dbtng_migrator_change_log` table plus three row triggers per tracked application table.
+
+Captured records contain operation, table, identity kind and primary-key JSON when the table has a conservatively supported PK. No-PK or unsupported-key tables emit table-dirty events. No raw SQL or full row image is copied into the log.
+
+The trigger insert participates in the originating primary transaction, so rolled-back writes do not become committed capture records. MySQL-family event IDs are identifiers only, not commit-order watermarks.
+
 ### Continuous synchronization
 
-`ChangeCaptureInterface` plus `SyncEngineInterface` maintains an initialized standby after import/rebuild.
+`SyncEngineInterface` will later consume durable events, re-read authoritative current state, apply policy to the standby and acknowledge exact event IDs only after destination durability. That application loop is not implemented in E1.
 
 ## Components
 
@@ -131,7 +139,9 @@ Import supports both initial engine directions.
 - `DestinationStateInspectorInterface`: classifies whether an import/restore destination contains state.
 - `SnapshotManagerInterface`: orchestrates a consistent rebuild.
 - `SourceSchemaIntrospectorInterface`: converts physical primary schema to DBTNG's portable model.
-- `ChangeCaptureInterface`: owns engine-specific durable primary-side change capture.
+- `ChangeCaptureInterface`: manages engine-specific durable primary-side change capture.
+- `ChangeCaptureAdapterInterface`: installs/reads/acknowledges engine-specific capture infrastructure.
+- `ChangeIdentityPlanner`: selects primary-key or table-dirty capture conservatively.
 - `SyncEngineInterface`: applies pending changes to the standby and reports synchronization state.
 - `ReplicationPolicyInterface`: classifies standby data.
 - `SnapshotPublisherInterface`: promotes a validated isolated standby candidate.

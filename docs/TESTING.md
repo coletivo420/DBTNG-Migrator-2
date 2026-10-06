@@ -6,6 +6,11 @@
 
 Cover:
 
+- conservative capture identity planning (PK vs table-dirty fallback);
+- SQLite trigger installation, INSERT/UPDATE/DELETE capture, PK-change old/new identity and exact acknowledgement;
+- capture infrastructure exclusion from normal physical inventory;
+- capture status/backlog reporting and invalid batch/event identifiers;
+
 - database topology validation;
 - replication-profile typing and topology compatibility;
 - import request validation;
@@ -185,3 +190,29 @@ Do not call the project production-ready until both directions have:
 On `dbtng.toca.net.br` (Drupal 11.4.8, PHP 8.4.26, Drush 13.8.0, MariaDB 11.8.6, SQLite 3.46.1), rebuilds passed in both FULL directions and in MariaDB -> SQLite CLEAN. Each transfer used 21 batches for FULL and 13 for CLEAN, with a measured PHP peak of 30 MiB. Final CLEAN reconciliation returned `MATCH`; SQLite integrity and manifest checks passed. Drupal status, requirements, cache rebuild, CRUD and HTTP 200 were verified while each FULL engine was selected as primary.
 
 Test-only injected exceptions were exercised at all available lifecycle points for SQLite publication and at candidate creation, mid-transfer, after validation, before publication and immediately before MariaDB's atomic rename. Each attempt retained the prior published pointer or the 57 canonical MariaDB application tables. These tests exercise handled process failures; an operating-system kill or host power-loss drill remains a separate durability test. PHPUnit currently reports 17 upstream deprecations.
+
+
+## Phase E1 live capture acceptance (pending host session)
+
+When local/Codex host access resumes, validate both primary engines on `dbtng.toca.net.br`.
+
+For MariaDB primary:
+
+1. install capture;
+2. verify three triggers per tracked Drupal table and InnoDB change log;
+3. commit INSERT/UPDATE/DELETE fixtures and verify events;
+4. roll back a fixture transaction and prove no committed event remains;
+5. update a PK and verify old/new keys;
+6. mutate a no-PK fixture and verify table-dirty fallback;
+7. run rebuild after capture activation to establish baseline;
+8. prove normal inventory/rebuild excludes DBTNG capture objects.
+
+Repeat equivalent transaction-coupling tests with SQLite primary, including WAL mode.
+
+Also prove/document:
+
+- MySQL TRUNCATE is not captured;
+- DDL is not row-triggered;
+- role switching with installed capture is not yet an automatic operation;
+- no standby data is changed by E1;
+- backlog survives process exit/restart.

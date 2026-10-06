@@ -327,3 +327,12 @@ The only canonical host is `dbtng.toca.net.br`. The environment ends with MariaD
 The canonical development host is `dbtng.toca.net.br`. The expected final role selection is MariaDB primary and SQLite standby. A CLEAN SQLite standby is intentionally not full-equivalent and must not be promoted as though it were FULL. The development validation for Phase D passed MariaDB -> SQLite FULL, SQLite -> MariaDB FULL and MariaDB -> SQLite CLEAN rebuilds; the final standby manifest records profile `clean` and reconciliation `MATCH`.
 
 Phase D uses immutable SQLite generations under `/home/bdtgn/private/dbtng/sqlite/generations`, with the configured SQLite path acting as an atomic symlink. MariaDB candidates use reserved staged-table and retained-generation prefixes within the dedicated schema. Do not delete these artifacts manually while a rebuild is active.
+
+
+## Phase E1 capture validation gate
+
+Phase E1 can be developed and unit-tested without changing the live host, but it is not considered operationally complete until the canonical host validates trigger privileges and transaction coupling for both primary engines.
+
+When host work resumes, use `dbtng:capture:install` only on the selected primary, establish a fresh validated rebuild/import baseline afterwards, and leave the final environment as MariaDB primary / SQLite standby unless a test explicitly requires the opposite role.
+
+Do not use `virtualmin list-domains --multiline` during this validation.

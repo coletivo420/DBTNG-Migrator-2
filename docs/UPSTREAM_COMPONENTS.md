@@ -165,3 +165,12 @@ Before implementing a backup/restore/clear adapter:
 ## Phase C provenance
 
 No upstream source lines or non-trivial code blocks were copied into the Phase C cleaners, restore adapters, schema builders or import pipeline. The implementation uses the platform's native database APIs and applies the Drush SQL drop/import, credential-file and process-handling behavior studied during Phase B as design reference. No upstream dependency was added for Phase C. This is a call/adapt/design-reference outcome, not a code-port claim.
+
+
+## 7. Engine-native trigger CDC foundation
+
+Phase E1 uses documented MariaDB/MySQL and SQLite trigger semantics directly rather than embedding another Drupal replication module.
+
+The implementation records dirty logical identity, not raw SQL and not full row images. No substantial upstream code was copied for the E1 trigger adapters.
+
+Before extending this layer with binlog CDC or third-party replication libraries, record the exact upstream project/version here and compare its transaction, privilege and recovery guarantees against the trigger baseline.

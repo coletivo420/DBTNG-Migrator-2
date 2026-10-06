@@ -39,6 +39,13 @@ This file is normative guidance for humans and AI coding agents. Architectural c
 33. **Drush commands that inject Drupal services must declare the appropriate Drush bootstrap level.** Use the current Symfony `AsCommand` and `AutowireTrait` form supported by Drush 13.7+ and validate command discovery in the actual Composer installation layout.
 34. **Schema defaults are semantic values, not portable SQL fragments.** Introspect and decode only safe literal defaults, leave backend expressions for portability analysis, and quote string defaults with the destination driver's quoting rules.
 35. **Reserved candidate namespaces are part of rebuild safety.** Normal inventories hide DBTNG staging/archive objects, while explicit candidate validation must include the exact staged table set. SQLite candidate WAL/SHM sidecars must be closed and cleaned before publication.
+36. **Never replay captured raw SQL across engines.** Durable capture records dirty logical identities only; the future sync worker must read authoritative current state from the primary.
+37. **Capture event IDs are not commit-order watermarks.** MySQL-family transactions can commit out of auto-increment allocation order; acknowledge exact durable event IDs only after their standby effect is durable.
+38. **Tables without a safely encodable primary key degrade to table-dirty capture.** Do not invent row identities from offsets, unordered columns or engine-specific row IDs.
+39. **TRUNCATE and DDL are outside row-trigger CDC coverage.** Detect schema/structural drift through reconciliation/fingerprints and require rebuild or another explicit mechanism.
+40. **Capture infrastructure belongs only to the selected primary role.** A future role transition must fence and rebind capture deliberately; never infer that triggers on an old primary remain authoritative.
+41. **Installing capture does not establish standby parity.** After first activation, create/rebuild a validated baseline before any continuous-sync claim.
+42. **Never acknowledge a captured event before downstream durability.** E1 exposes exact acknowledgement primitives for the future worker, but no current command may discard backlog as a substitute for applying it.
 
 ## Current product boundary
 
@@ -47,7 +54,7 @@ Initial topologies:
 - MariaDB/MySQL primary -> SQLite standby (`full` or opt-in `clean`).
 - SQLite primary -> MariaDB/MySQL standby (`full`).
 
-Both directions are implemented as logical import requirements. Phase C provides native restore and destination preparation, and the Phase D branch adds candidate-based rebuild/reconciliation. Browser download remains future work.
+Both directions are implemented for logical import and candidate rebuild/reconciliation. Phase E1 adds primary-side durable capture only; standby application and continuous synchronization remain future work. Browser download remains future work.
 
 PostgreSQL and other engines are future adapters.
 
@@ -146,3 +153,13 @@ Do not claim production readiness until the beta/stable criteria in `docs/TESTIN
 - MySQL-family staging names `dbtngc<8-hex>_`, retained names `dbtngp<8-hex>_`, and `dbtng_migrator_snapshot_state` are reserved for DBTNG; reject collisions and do not treat them as Drupal application tables.
 - A clean SQLite standby is standby-only and must never be reported as full-equivalent or promoted as such.
 - Failure injection is supplied through an injected test service; production uses `NullFailureInjector`. Do not add ad-hoc environment-variable failpoints.
+
+
+## Phase E1 capture checks
+
+- Capture uses the reserved `dbtng_migrator_change_log` table and `dbtng_migrator_cdc_*` triggers on the selected primary only.
+- Normal schema inventory must hide DBTNG capture tables/triggers so they are never migrated as Drupal application state.
+- Primary-key capture is allowed only for conservatively supported key types; unsupported/no-PK tables become table-dirty events.
+- MySQL/MariaDB and SQLite trigger writes must participate in the same source transaction as the application mutation.
+- Event IDs may contain gaps and may become visible out of allocation order on MySQL-family engines; do not derive a scalar applied watermark from `MAX(sequence)`.
+- Until the live development host validates E1, document the feature as code/CI validated only, not production-ready.

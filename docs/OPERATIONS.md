@@ -68,3 +68,21 @@ Schema-changing deployments (`composer` updates, module install/uninstall and `d
 `dbtng.toca.net.br` is explicitly disposable integration infrastructure. Permission to reset it does not imply permission to reset or reconfigure any production Virtualmin site.
 
 Phase C commands are available through Drush: `dbtng:doctor`, `dbtng:preflight`, `dbtng:backup`, `dbtng:restore` and `dbtng:import`. The import/restore target is always the configured standby. Use `abort` unless a verified safety backup followed by standby clearing is intended. The live environment is left with MariaDB primary and SQLite standby; the latest SQLite standby is the documented `clean` projection and must not be promoted as a full-equivalent copy.
+
+
+## Durable change capture (Phase E1)
+
+Code-level commands:
+
+```bash
+drush dbtng:capture:install
+drush dbtng:capture:status
+```
+
+`capture:install` installs the reserved change log and row triggers on the **currently selected primary**. It does not modify the standby and does not establish a synchronization baseline by itself.
+
+`capture:status` reports installed/expected trigger counts, tracked tables, table-dirty fallbacks and pending event count without acknowledging anything.
+
+There is intentionally no normal operator command to discard/acknowledge backlog in E1. Exact acknowledgement exists as an internal contract for the future sync worker and must occur only after the corresponding standby effect is durable.
+
+The feature still requires live validation on `dbtng.toca.net.br` before Phase E1 can be marked operationally complete.
