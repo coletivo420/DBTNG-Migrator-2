@@ -14,6 +14,8 @@ Both database representations contain sensitive Drupal data and must be treated 
 - Never trust an upload filename, extension or client MIME type as proof of database format.
 - Checksum backup artifacts before download/safekeeping and before using a safety backup as justification for destructive clearing.
 - Never expose database passwords on process command lines when the native client supports protected credential files/options.
+- Do not use `virtualmin list-domains --multiline` for routine automation or diagnosis; Virtualmin may include database passwords in that output. Use narrowly scoped commands and request only non-sensitive fields.
+- Administrative command output and derived logs, reports, CI artifacts and chat must never contain credentials. Do not attempt to retrieve or print a current password.
 - Fail closed when portability or validation cannot establish correctness in strict mode.
 - Do not expose database ports remotely merely for DBTNG synchronization when source and standby are on the same host.
 

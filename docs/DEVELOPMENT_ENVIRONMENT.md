@@ -36,8 +36,7 @@ command -v sqlite3
 command -v mariadb-dump || command -v mysqldump
 command -v gzip
 
-sudo virtualmin list-domains --domain dbtng.toca.net.br --multiline || true
-sudo virtualmin list-domains --domain toca.net.br --multiline || true
+sudo virtualmin list-domains --domain dbtng.toca.net.br
 sudo virtualmin list-plans --name-only || true
 sudo virtualmin help create-domain
 sudo virtualmin help modify-web
@@ -53,6 +52,8 @@ mariadb --version 2>/dev/null || mysql --version
 Also verify DNS resolution for `dbtng.toca.net.br` before requesting Let's Encrypt.
 
 Do not assume Apache vs Nginx, PHP-FPM layout, username, home directory, MariaDB database prefix, PHP version or DNS ownership. Discover them.
+
+Do not use `virtualmin list-domains --multiline` for routine discovery: it may print database passwords. Prefer the minimal `list-domains --domain dbtng.toca.net.br` output or a specific query that excludes credential fields. Do not query or print current passwords. Keep all administrative output free of credentials before it reaches a terminal, log, report, CI artifact or chat.
 
 ## 3. Virtualmin provisioning decision
 
@@ -108,7 +109,7 @@ The deployed integration environment is:
 - A Let's Encrypt certificate for `dbtng.toca.net.br` is installed with automatic renewal. HTTP and HTTPS were verified against the origin; HTTPS certificate validation succeeded.
 - Nginx's `www-data` account has execute-only ACL access to `/home/bdtgn` so it can traverse to the public document root and serve ACME challenge files without listing the home directory.
 
-The site was initially provisioned as `bdtgn.toca.net.br` with no public DNS record and a self-signed certificate. On 2026-10-06, the same Virtualmin server was renamed to `dbtng.toca.net.br`; its Unix account, home, database and document root were preserved. The obsolete `bdtgn.toca.net.br` Cloudflare A record was removed. Do not recreate it as the canonical integration host.
+The site was initially provisioned under a temporary hostname with no public DNS record and a self-signed certificate. On 2026-10-06, the Virtualmin server was renamed to the canonical hostname; its Unix account, home, database and document root were preserved. The authoritative Cloudflare zone contains only the canonical integration hostname for this environment.
 
 ## 6. PHP and system packages
 
@@ -166,7 +167,7 @@ Create a dedicated MariaDB/MySQL database owned by `dbtng.toca.net.br` using Vir
 
 ```bash
 sudo virtualmin help create-database
-sudo virtualmin list-databases --domain dbtng.toca.net.br --multiline
+sudo virtualmin list-databases --domain dbtng.toca.net.br
 ```
 
 Create the SQLite database under `<domain-home>/private/dbtng/`.

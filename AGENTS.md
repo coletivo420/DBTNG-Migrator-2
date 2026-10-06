@@ -77,6 +77,8 @@ Codex may:
 - Never ask the user to paste the root/sudo password into chat, a file, an environment variable or a command argument.
 - Let `sudo` request the password interactively in the user's terminal.
 - Never run commands that reveal cached credentials or Virtualmin password fields.
+- Do not use `virtualmin list-domains --multiline` in normal automation or diagnosis: its output may contain database credentials. Administrative commands must request minimal output and avoid password-bearing fields.
+- No credential may appear in command output, logs, reports, CI artifacts or chat. Never inspect current credentials to recover or print them.
 - Generate development account/database passwords securely and keep them out of Git and normal logs.
 - Prefer `--passfile`/protected temporary files where supported; delete temporary credential files immediately.
 - Run Composer, Git, Drush and application commands as the Virtualmin domain owner, **not as root**.
