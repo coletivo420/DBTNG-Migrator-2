@@ -94,7 +94,14 @@ final class RowTransfer {
         }
         catch (\Throwable $exception) {
           unset($transaction);
-          throw new DbtngException(sprintf('Row import failed in table "%s"; the standby is not initialized.', $table->name), 0, $exception);
+          $driverCode = 'unknown';
+          for ($cause = $exception; $cause !== NULL; $cause = $cause->getPrevious()) {
+            if ($cause instanceof \PDOException && isset($cause->errorInfo[1])) {
+              $driverCode = (string) $cause->errorInfo[1];
+              break;
+            }
+          }
+          throw new DbtngException(sprintf('Row import failed in table "%s" (driver code %s); the standby is not initialized.', $table->name, $driverCode), 0, $exception);
         }
         $totalRows++;
         $totalBytes += $rowBytes;
