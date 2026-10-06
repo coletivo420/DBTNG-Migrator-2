@@ -49,7 +49,8 @@ final class MysqlFamilySchemaIntrospector implements SourceSchemaIntrospectorInt
       $name = (string) $row['TABLE_NAME'];
       // Namespaces are reserved for isolated DBTNG candidates and retained
       // generations. They are not application tables during normal operation.
-      if (preg_match('/^dbtng[cp][0-9a-f]{8}_/', $name) === 1 || $name === 'dbtng_migrator_snapshot_state') {
+      if (($onlyTables === NULL && preg_match('/^dbtng[cp][0-9a-f]{8}_/', $name) === 1)
+        || $name === 'dbtng_migrator_snapshot_state') {
         continue;
       }
       if ($onlyTables !== NULL && !in_array($name, $onlyTables, TRUE)) {
