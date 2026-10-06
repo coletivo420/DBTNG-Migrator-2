@@ -6,7 +6,6 @@ namespace Drupal\dbtng_migrator\Contract;
 
 use Drupal\Core\Database\Connection;
 use Drupal\dbtng_migrator\Model\ChangeCaptureStatus;
-use Drupal\dbtng_migrator\Model\ChangeRecord;
 use Drupal\dbtng_migrator\Model\DatabaseEngine;
 use Drupal\dbtng_migrator\Model\DatabaseInventory;
 

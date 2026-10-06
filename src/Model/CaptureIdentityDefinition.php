@@ -10,6 +10,8 @@ namespace Drupal\dbtng_migrator\Model;
 final readonly class CaptureIdentityDefinition {
 
   /**
+   * Constructs a row-identity plan.
+   *
    * @param list<string> $columns
    *   Ordered physical primary-key columns when row-addressable.
    */

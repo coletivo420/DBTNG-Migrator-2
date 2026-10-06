@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Drupal\dbtng_migrator\ChangeCapture;
 
 use Drupal\dbtng_migrator\Connection\DatabaseTopologyResolver;
-use Drupal\dbtng_migrator\Contract\ChangeCaptureAdapterInterface;
 use Drupal\dbtng_migrator\Contract\ChangeCaptureInterface;
 use Drupal\dbtng_migrator\Exception\DbtngException;
 use Drupal\dbtng_migrator\Model\ChangeCaptureStatus;
@@ -69,7 +68,10 @@ final class ChangeCaptureManager implements ChangeCaptureInterface {
   }
 
   /**
+   * Resolves the primary database and matching capture adapter.
+   *
    * @return array{0: \Drupal\dbtng_migrator\Contract\ChangeCaptureAdapterInterface, 1: \Drupal\dbtng_migrator\Model\ResolvedDatabase}
+   *   Adapter and resolved primary database.
    */
   private function adapterAndDatabase(): array {
     $resolved = $this->resolver->resolve();

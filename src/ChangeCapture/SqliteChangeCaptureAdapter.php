@@ -19,7 +19,7 @@ use Drupal\dbtng_migrator\Model\TableDefinition;
 use Drupal\dbtng_migrator\Schema\SqlIdentifier;
 
 /**
- * Captures SQLite mutations atomically inside the originating write transaction.
+ * Captures SQLite mutations atomically inside the originating transaction.
  */
 final class SqliteChangeCaptureAdapter implements ChangeCaptureAdapterInterface {
 
@@ -183,7 +183,10 @@ final class SqliteChangeCaptureAdapter implements ChangeCaptureAdapterInterface 
   }
 
   /**
+   * Lists DBTNG capture triggers in the SQLite schema.
+   *
    * @return list<string>
+   *   Capture trigger names.
    */
   private function triggerNames(Connection $connection): array {
     $statement = $connection->query(
@@ -200,7 +203,10 @@ final class SqliteChangeCaptureAdapter implements ChangeCaptureAdapterInterface 
   }
 
   /**
+   * Returns pending count and visible event-ID bounds.
+   *
    * @return array{0: int, 1: int|null, 2: int|null}
+   *   Pending count, oldest ID and newest ID.
    */
   private function backlog(Connection $connection): array {
     $statement = $connection->query(
@@ -219,7 +225,10 @@ final class SqliteChangeCaptureAdapter implements ChangeCaptureAdapterInterface 
   }
 
   /**
+   * Converts one database row into a typed capture record.
+   *
    * @param array<string, mixed> $row
+   *   Raw change-log row.
    */
   private function record(array $row): ChangeRecord {
     return new ChangeRecord(
@@ -234,7 +243,10 @@ final class SqliteChangeCaptureAdapter implements ChangeCaptureAdapterInterface 
   }
 
   /**
+   * Decodes one optional primary-key JSON document.
+   *
    * @return array<string, int|string|null>|null
+   *   Decoded key values, or NULL when the event has no row key.
    */
   private function decodeKey(mixed $json): ?array {
     if ($json === NULL) {

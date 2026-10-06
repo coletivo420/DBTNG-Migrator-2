@@ -10,6 +10,8 @@ namespace Drupal\dbtng_migrator\Model;
 final readonly class ChangeCaptureStatus {
 
   /**
+   * Constructs a capture health/backlog summary.
+   *
    * @param list<string> $warnings
    *   Non-fatal correctness/coverage warnings.
    */

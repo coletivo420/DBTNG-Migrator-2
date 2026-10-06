@@ -10,6 +10,8 @@ namespace Drupal\dbtng_migrator\Model;
 final readonly class ChangeRecord {
 
   /**
+   * Constructs one durable dirty record.
+   *
    * @param array<string, int|string|null>|null $key
    *   Current primary-key values for insert/update events.
    * @param array<string, int|string|null>|null $oldKey
