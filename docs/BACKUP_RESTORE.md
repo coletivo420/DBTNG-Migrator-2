@@ -15,6 +15,8 @@ Do not parse a MySQL SQL dump as if it were a portable SQLite migration format. 
 
 This is an operator CLI artifact, not a browser download endpoint. Native restore, clear and backup-then-clear are not implemented in Phase B.
 
+The SQLite snapshot adapter registers Drupal's NOCASE_UTF8 collation before backup validation. Drupal schemas can contain indexes that use this collation; a plain SQLite3 connection reports an error when checking those indexes unless the collation is registered.
+
 ## Native download formats
 
 ### MariaDB/MySQL

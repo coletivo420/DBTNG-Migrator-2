@@ -44,31 +44,31 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/examples/settings.dbt
 
 ## Import and destination preparation
 
-DBTNG supports logical import in both directions:
+The product requires logical import in both directions:
 
 ```text
 MariaDB/MySQL -> SQLite
 SQLite        -> MariaDB/MySQL
 ```
 
-An empty standby is imported directly. If the standby already contains data, the operator chooses an explicit policy:
+Logical import and destination preparation are not implemented yet. The planned behavior is to import into an empty standby, or require an explicit policy when it contains data:
 
 - `abort` — default, no mutation;
 - `backup_then_clear` — create and verify a native safety backup, clear the standby, then import;
 - `clear` — explicitly clear the standby without a safety backup.
 
-DBTNG never silently merges or overwrites an existing database, and it never clears the active primary. The destination is considered initialized only after validation succeeds.
+The implementation must never silently merge or overwrite an existing database, and must never clear the active primary. The destination will be considered initialized only after validation succeeds.
 
 See [docs/IMPORT.md](docs/IMPORT.md) and [docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md).
 
 ## Native backup / download / restore
 
-DBTNG also provides same-engine native database backups:
+Phase B provides same-engine native database backups:
 
 - MariaDB/MySQL: `.sql` or `.sql.gz`;
 - SQLite: consistent `.sqlite` or `.sqlite.gz` snapshot.
 
-Backups may be created from either configured role and downloaded from the administration UI or written through CLI/private storage. Native restore targets the matching standby engine; cross-engine movement always uses DBTNG's logical import engine.
+Backups may be created from either configured role through Drush and are written to private storage. Browser downloads and native restore are planned; cross-engine movement will use DBTNG's logical import engine when implemented.
 
 The implementation is upstream-first and adapts proven behavior from Backup and Migrate, SQLite Backup, SQLite's native backup API and Drush SQL tooling instead of creating a second independent backup framework.
 
@@ -142,7 +142,7 @@ Codex is authorized to provision and maintain that development installation with
 
 ## Project status
 
-This repository is in the early operational foundation phase. It now resolves configured primary/standby connections, inventories physical MariaDB/MySQL and SQLite schemas, inspects standby emptiness, performs conservative portability preflight, and creates same-engine native backups through Drush. **It does not yet import, restore, clear, continuously synchronize, or fail over. Do not deploy it as a production standby system.**
+This repository is in the early operational foundation phase. Phase B implements configured primary/standby resolution, physical MariaDB/MySQL and SQLite inventories, destination-state inspection, conservative portability preflight, and same-engine native backups through Drush. The Phase B branch has passed local quality checks and live validation; GitHub CI/CodeQL and PR review remain before merge. **It does not yet import, restore, clear, continuously synchronize, or fail over. Do not deploy it as a production standby system.**
 
 ## Requirements
 
@@ -156,7 +156,7 @@ This repository is in the early operational foundation phase. It now resolves co
 ## Roadmap
 
 1. Project skeleton, selectable topology contracts, documentation and CI. (complete)
-2. Runtime topology resolver, doctor/preflight, MariaDB/MySQL and SQLite physical inventory, destination state inspection, portability analysis, and same-engine native backups. (Phase B implementation)
+2. Runtime topology resolver, doctor/preflight, MariaDB/MySQL and SQLite physical inventory, destination state inspection, portability analysis, and same-engine native backups. (implemented and live-validated; CI/merge pending)
 3. Controlled standby clearing, native restore and logical import/bootstrap in both directions.
 4. Destination builders and consistent rebuilds for both directions.
 5. Engine-specific durable change capture.

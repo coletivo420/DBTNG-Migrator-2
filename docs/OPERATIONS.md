@@ -47,6 +47,8 @@ drush dbtng:backup --role=standby
 
 `dbtng:doctor` reports resolved roles, engines, versions and tool availability without printing credentials. `dbtng:preflight` performs read-only connection checks, physical inventories, destination-state inspection and strict portability analysis. `dbtng:backup` is read-only and may target either role. It stores output below Drupal's configured private path by default.
 
+The 2026-10-06 live test on `dbtng.toca.net.br` created MariaDB and SQLite backups in both role assignments. The preflight correctly returned BLOCKED in both directions because the target database is a separate Drupal install (56 tables), not an empty or synchronized standby. SQLite snapshots passed an integrity check with Drupal's custom collation registered, including a live WAL write test. The current site selector was restored to MariaDB primary.
+
 Restore targets the configured standby and accepts only its engine's native backup format. This command is planned but not implemented. Use logical `dbtng:import` for cross-engine transfer once available.
 
 Destination preparation and `abort | backup_then_clear | clear` policies are not operational yet; no clearing or restore command is available.

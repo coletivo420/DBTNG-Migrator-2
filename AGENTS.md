@@ -35,6 +35,8 @@ This file is normative guidance for humans and AI coding agents. Architectural c
 29. **Use upstream implementations before inventing new backup code.** Follow `docs/UPSTREAM_COMPONENTS.md`, retain provenance/license notices for copied code and prefer adapters around proven tools.
 30. **Live SQLite is never backed up by blindly copying only the main file.** Use SQLite's online backup facilities or another proven consistent snapshot mechanism, especially under WAL.
 31. **Database downloads and uploads are private sensitive artifacts.** Never stage them under public webroot or trust client-provided filenames/MIME types.
+32. **SQLite snapshot validation must register Drupal's `NOCASE_UTF8` collation.** Drupal indexes can depend on it; plain SQLite3 integrity checks otherwise fail on valid site databases.
+33. **Drush commands that inject Drupal services must declare the appropriate Drush bootstrap level.** Use the current Symfony `AsCommand` and `AutowireTrait` form supported by Drush 13.7+ and validate command discovery in the actual Composer installation layout.
 
 ## Current product boundary
 
@@ -43,7 +45,7 @@ Initial topologies:
 - MariaDB/MySQL primary -> SQLite standby (`full` or opt-in `clean`).
 - SQLite primary -> MariaDB/MySQL standby (`full`).
 
-Both directions support logical import. Empty destinations proceed directly; populated standbys require an explicit destination-preparation policy. Native backup/download/restore is supported for each engine in its own native format.
+Both directions are logical-import requirements, but logical import and destination preparation are not implemented yet. Phase B provides read-only topology/inspection commands and private same-engine CLI backups for either role. Browser download, restore and clear are future work.
 
 PostgreSQL and other engines are future adapters.
 
@@ -104,9 +106,9 @@ Before mutating the server, follow [docs/DEVELOPMENT_ENVIRONMENT.md](docs/DEVELO
 4. install Drupal as the domain user through Composer;
 5. link this module through a Composer path repository;
 6. configure both database engines;
-7. exercise native backup/download/restore for both engines;
-8. exercise logical import in both directions;
-9. exercise `abort`, `backup_then_clear` and `clear` destination policies on disposable standby data;
+7. exercise implemented native CLI backups for both engines; test downloads/restores only after their phase is implemented;
+8. exercise logical import in both directions only after its phase is implemented;
+9. exercise `abort`, `backup_then_clear` and `clear` destination policies only after destination preparation is implemented;
 10. exercise both primary topologies;
 11. record test evidence in the PR/commit notes.
 

@@ -44,6 +44,8 @@ Required directions:
 
 The canonical live integration host is `dbtng.toca.net.br`.
 
+The Phase B live baseline is Drupal 11.4.8, Drush 13.8.0, MariaDB 11.8.6 and SQLite 3.46.1 on PHP 8.4.26. Integration runs must use the domain owner account and private artifacts. The current alternate SQLite database is an independent Drupal install and should correctly produce NON_EMPTY as a destination; it is not a synchronized standby.
+
 ## Native backup / restore matrix
 
 For MariaDB/MySQL:
@@ -61,6 +63,7 @@ For SQLite:
 - create a consistent `.sqlite` snapshot while the source is live;
 - run under WAL mode and prove committed data is present in the snapshot;
 - pass `PRAGMA integrity_check`;
+- validate Drupal's NOCASE_UTF8 indexes by registering Drupal's collation on SQLite3 handles used for the snapshot and integrity check;
 - optionally gzip and restore the snapshot;
 - restore into an empty SQLite standby;
 - restore into a populated SQLite standby using `backup_then_clear`;

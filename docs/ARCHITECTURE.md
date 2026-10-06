@@ -63,6 +63,12 @@ The initial engine pair is:
 
 Primary and standby must use different engines in the initial product.
 
+### Runtime resolution (Phase B)
+
+The DatabaseTopologyResolver reads role keys and expected engines from deployment settings, obtains each connection explicitly through its connection factory, and verifies the actual driver/product/version. It rejects absent/mismatched roles and matching physical identities. It never changes Drupal's active connection. MySQL and MariaDB normalize to the MysqlFamily engine while retaining the detected product for native-tool selection.
+
+The resolver's identity check is an operational guard, not a network-wide proof that two different DNS names cannot refer to the same database server. Configure unique database names for each role.
+
 ## Core operations
 
 ### Native backup
@@ -143,6 +149,8 @@ Import, native restore and rebuild are distinct operations. At the current phase
 There is no merge path. "Clear" means remove existing standby state first, then create a fresh destination representation.
 
 For SQLite backup/import/restore/rebuild, temporary database files provide natural isolation. Live SQLite backups must use the online backup API or another consistent SQLite snapshot mechanism rather than a raw main-file copy.
+
+SQLite Online Backup API snapshots register Drupal's NOCASE_UTF8 collation on their SQLite handles before running integrity validation. Drupal-created indexes may use this custom collation; a plain SQLite3 handle otherwise cannot validate them.
 
 For MariaDB/MySQL empty import, the destination adapter must track created state and define cleanup/retry semantics. Rebuild of an initialized MariaDB/MySQL standby requires a separate isolated candidate/promotion strategy.
 
