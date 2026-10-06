@@ -10,6 +10,8 @@ use Drupal\dbtng_migrator\Exception\DbtngException;
 use Drupal\dbtng_migrator\Model\BackupCompression;
 use Drupal\dbtng_migrator\Model\DatabaseRole;
 use Drupal\dbtng_migrator\Model\NativeBackupRequest;
+use Drush\Attributes as CLI;
+use Drush\Boot\DrupalBootLevels;
 use Drush\Commands\AutowireTrait;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -20,6 +22,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 /**
  * Creates a private native backup of either resolved database role. */
 #[AsCommand(name: 'dbtng:backup', description: 'Create a native database backup of primary or standby.')]
+#[CLI\Bootstrap(level: DrupalBootLevels::FULL)]
 final class BackupCommand extends Command {
 
   use AutowireTrait;

@@ -11,6 +11,8 @@ use Drupal\dbtng_migrator\Model\DatabaseProduct;
 use Drupal\dbtng_migrator\Model\DestinationState;
 use Drupal\dbtng_migrator\Schema\SchemaIntrospectionManager;
 use Drupal\Core\Database\StatementInterface;
+use Drush\Attributes as CLI;
+use Drush\Boot\DrupalBootLevels;
 use Drush\Commands\AutowireTrait;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -20,6 +22,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 /**
  * Performs read-only topology, destination and strict portability checks. */
 #[AsCommand(name: 'dbtng:preflight', description: 'Inspect topology, schema portability and standby readiness.')]
+#[CLI\Bootstrap(level: DrupalBootLevels::FULL)]
 final class PreflightCommand extends Command {
 
   use AutowireTrait;

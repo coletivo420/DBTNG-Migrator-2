@@ -6,6 +6,8 @@ namespace Drupal\dbtng_migrator\Drush\Commands;
 
 use Drupal\dbtng_migrator\Model\DatabaseProduct;
 use Drupal\dbtng_migrator\Connection\DatabaseTopologyResolver;
+use Drush\Attributes as CLI;
+use Drush\Boot\DrupalBootLevels;
 use Drush\Commands\AutowireTrait;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -15,6 +17,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 /**
  * Reports resolved role connections and local backup prerequisites. */
 #[AsCommand(name: 'dbtng:doctor', description: 'Check DBTNG database topology and backup tools.')]
+#[CLI\Bootstrap(level: DrupalBootLevels::FULL)]
 final class DoctorCommand extends Command {
 
   use AutowireTrait;
