@@ -5,6 +5,8 @@ All notable changes to DBTNG Migrator 2 will be documented here.
 ## Unreleased
 
 ### Added
+- Candidate-based standby rebuild with SQLite generation publication, same-schema MySQL-family staging, pre-publication write fencing, read-only reconciliation and streamed row-content drift detection.
+- Shared operation locking and injected rebuild failure points; versioned, secret-free generation manifests.
 - Runtime topology resolver and `dbtng:doctor`, `dbtng:preflight` and `dbtng:backup` Drush commands.
 - Physical MySQL-family and SQLite inventory, typed index/foreign-key/schema-object metadata, standby emptiness inspection and strict initial portability analysis.
 - Native MariaDB/MySQL dump and online SQLite backup adapters with private artifacts, optional gzip and SHA-256 metadata.

@@ -26,7 +26,13 @@ final class MysqlFamilySchemaIntrospector implements SourceSchemaIntrospectorInt
     return strtolower($connection->driver()) === 'mysql';
   }
 
-  public function inspect(Connection $connection): DatabaseInventory {
+  /**
+   * Inventories the schema, optionally restricting results to named tables.
+   *
+   * @param list<string>|null $onlyTables
+   *   Optional physical table names to include.
+   */
+  public function inspect(Connection $connection, ?array $onlyTables = NULL): DatabaseInventory {
     if (!$this->supports($connection)) {
       throw new \InvalidArgumentException('MysqlFamilySchemaIntrospector requires Drupal’s MySQL driver.');
     }
@@ -41,6 +47,14 @@ final class MysqlFamilySchemaIntrospector implements SourceSchemaIntrospectorInt
     $objects = [];
     foreach ($tableRows as $row) {
       $name = (string) $row['TABLE_NAME'];
+      // Namespaces are reserved for isolated DBTNG candidates and retained
+      // generations. They are not application tables during normal operation.
+      if (preg_match('/^dbtng[cp][0-9a-f]{8}_/', $name) === 1 || $name === 'dbtng_migrator_snapshot_state') {
+        continue;
+      }
+      if ($onlyTables !== NULL && !in_array($name, $onlyTables, TRUE)) {
+        continue;
+      }
       if (!$this->matchesPrefix($name, $options['prefix'] ?? '')) {
         continue;
       }

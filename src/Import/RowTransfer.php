@@ -9,10 +9,12 @@ use Drupal\Core\Database\StatementInterface;
 use Drupal\Core\Database\Statement\FetchAs;
 use Drupal\dbtng_migrator\Exception\DbtngException;
 use Drupal\dbtng_migrator\Exception\PortabilityException;
+use Drupal\dbtng_migrator\Contract\FailureInjectorInterface;
 use Drupal\dbtng_migrator\Model\DatabaseEngine;
 use Drupal\dbtng_migrator\Model\DatabaseInventory;
 use Drupal\dbtng_migrator\Model\ReplicationDecision;
 use Drupal\dbtng_migrator\Model\ReplicationProfile;
+use Drupal\dbtng_migrator\Model\TableNameMap;
 use Drupal\dbtng_migrator\Policy\CleanReplicationPolicy;
 use Drupal\dbtng_migrator\Schema\SqlIdentifier;
 
@@ -20,12 +22,15 @@ use Drupal\dbtng_migrator\Schema\SqlIdentifier;
  * Transfers one source cursor at a time using configured row and byte bounds. */
 final class RowTransfer {
 
-  public function __construct(private readonly CleanReplicationPolicy $cleanPolicy) {}
+  public function __construct(
+    private readonly CleanReplicationPolicy $cleanPolicy,
+    private readonly FailureInjectorInterface $failures,
+  ) {}
 
   /**
    * Streams all selected table rows into the destination in bounded batches.
    *
-   * @return array{rows: int, bytes: int}
+   * @return array{rows: int, bytes: int, batches: int}
    *   Total transferred data and measured serialized value bytes.
    */
   public function transfer(
@@ -35,6 +40,7 @@ final class RowTransfer {
     ReplicationProfile $profile,
     int $batchRows,
     int $batchBytes,
+    ?TableNameMap $tableNames = NULL,
   ): array {
     if ($batchRows < 1 || $batchBytes < 1) {
       throw new \InvalidArgumentException('Import batch limits must be positive.');
@@ -45,6 +51,7 @@ final class RowTransfer {
     }
     $totalRows = 0;
     $totalBytes = 0;
+    $batchCount = 0;
     $previousSqlMode = $destinationEngine === DatabaseEngine::MysqlFamily ? $this->enableZeroAutoValueInsert($destination) : NULL;
     try {
       foreach ($inventory->tables as $table) {
@@ -62,7 +69,8 @@ final class RowTransfer {
         if (!$rows instanceof StatementInterface) {
           throw new DbtngException(sprintf('Source cursor could not be opened for table "%s".', $table->name));
         }
-        $insert = 'INSERT INTO ' . SqlIdentifier::quote($destination, $table->name)
+        $destinationTable = $tableNames?->destination($table->name) ?? $table->name;
+        $insert = 'INSERT INTO ' . SqlIdentifier::quote($destination, $destinationTable)
         . ' (' . implode(', ', array_map(static fn (string $name): string => SqlIdentifier::quote($destination, $name), $columnNames)) . ')'
         . ' VALUES (' . implode(', ', array_map(static fn (int $index): string => ':dbtng_' . $index, array_keys($columnNames))) . ')';
         $transaction = NULL;
@@ -114,14 +122,20 @@ final class RowTransfer {
             $transaction = NULL;
             $inBatch = 0;
             $batchSize = 0;
+            $batchCount++;
+            $this->failures->hit('mid_row_transfer', ['table' => $table->name, 'batch' => $batchCount]);
           }
+        }
+        if ($inBatch > 0) {
+          $batchCount++;
+          $this->failures->hit('mid_row_transfer', ['table' => $table->name, 'batch' => $batchCount]);
         }
         unset($transaction);
       }
       if ($destinationEngine === DatabaseEngine::Sqlite) {
         $destination->query('PRAGMA foreign_keys = ON');
       }
-      return ['rows' => $totalRows, 'bytes' => $totalBytes];
+      return ['rows' => $totalRows, 'bytes' => $totalBytes, 'batches' => $batchCount];
     }
     finally {
       if ($previousSqlMode !== NULL) {

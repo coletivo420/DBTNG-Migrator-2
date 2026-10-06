@@ -80,7 +80,7 @@ Initial native formats:
 - MariaDB/MySQL: SQL dump, optionally gzip-compressed;
 - SQLite: consistent SQLite database snapshot, optionally gzip-compressed.
 
-Native restore is not implemented. When added, it must target only the matching standby engine. Native formats are never cross-engine migration formats.
+Native restore targets only the matching standby engine. Native formats are never cross-engine migration formats.
 
 Backup/download/restore behavior is upstream-first. See [UPSTREAM_COMPONENTS.md](UPSTREAM_COMPONENTS.md) and [BACKUP_RESTORE.md](BACKUP_RESTORE.md).
 
@@ -96,7 +96,11 @@ A non-empty standby no longer has only one possible outcome. `NonEmptyDestinatio
 
 ### Import
 
-`ImportManagerInterface` logically imports the configured primary into a prepared standby. Empty standby destinations proceed directly; non-empty destinations require an explicit preparation policy.
+`ImportManagerInterface` logically imports the configured primary into a prepared standby. `SnapshotManager` rebuilds an already published standby into an isolated candidate and publishes only after validation and a short final write fence. SQLite candidates are immutable files switched through an atomic symlink rename. MariaDB/MySQL candidates use reserved staging table names and one multi-table `RENAME TABLE` statement; old tables remain under a reserved archive prefix. Both directions keep the deployment connection identifier stable.
+
+`ReconciliationEngine` is read-only. It compares schemas, indexes, row counts, streamed row-content digests, integrity and the generation manifest under the recorded profile. It reports `MATCH`, `DRIFT`, `BLOCKED` or `REBUILD_REQUIRED`; it never repairs differences.
+
+Until CDC exists, rebuild captures a consistent source snapshot and compares the candidate against the source again under a brief write fence. The fence blocks source writes only during final schema/content verification and publication. Rebuild fails closed when parity is not proven; it does not claim zero lag outside that barrier.
 
 It uses:
 

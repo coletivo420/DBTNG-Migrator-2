@@ -174,3 +174,8 @@ Do not call the project production-ready until both directions have:
 - crash-safe destination initialization/publication;
 - reconciliation;
 - application-level Drupal smoke tests.
+# Phase D rebuild and reconciliation tests
+
+`dbtng:reconcile` must be tested for schema drift, missing/extra tables, row-count drift, equal-count content drift, manifest mismatch, engine integrity and clean-profile exclusions. It is strictly read-only.
+
+`dbtng:rebuild` tests must inject failures after candidate creation, during transfer, before/after validation and immediately before each engine's atomic publication operation. For every pre-publication failure, verify the old standby remains usable and its manifest remains current. Test both role directions and clean MariaDB/MySQL -> SQLite; never promote a clean candidate as full.

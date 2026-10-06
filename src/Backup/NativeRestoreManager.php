@@ -17,6 +17,7 @@ use Drupal\dbtng_migrator\Model\DestinationState;
 use Drupal\dbtng_migrator\Model\NativeRestoreRequest;
 use Drupal\dbtng_migrator\Model\NativeRestoreResult;
 use Drupal\dbtng_migrator\Manifest\StandbyManifestStore;
+use Drupal\dbtng_migrator\Operation\OperationLock;
 
 /**
  * Validates same-engine native restores and applies the standby policy. */
@@ -31,9 +32,20 @@ final class NativeRestoreManager implements NativeRestoreManagerInterface {
     private readonly SqliteNativeRestoreAdapter $sqlite,
     private readonly StandbyManifestStore $manifestStore,
     private readonly MysqlIntegrityChecker $mysqlIntegrityChecker,
+    private readonly OperationLock $operationLock,
   ) {}
 
   public function restore(DatabaseTopology $topology, NativeRestoreRequest $request): NativeRestoreResult {
+    $lock = $this->operationLock->acquire('restore');
+    try {
+      return $this->restoreLocked($topology, $request);
+    }
+    finally {
+      $lock->release();
+    }
+  }
+
+  private function restoreLocked(DatabaseTopology $topology, NativeRestoreRequest $request): NativeRestoreResult {
     $resolved = $this->resolver->resolve();
     if (!$this->sameTopology($topology, $resolved->topology)
       || $resolved->primary->identity === $resolved->standby->identity

@@ -12,6 +12,7 @@ use Drupal\dbtng_migrator\Model\DatabaseEngine;
 use Drupal\dbtng_migrator\Model\DatabaseInventory;
 use Drupal\dbtng_migrator\Model\ForeignKeyDefinition;
 use Drupal\dbtng_migrator\Model\IndexColumnDefinition;
+use Drupal\dbtng_migrator\Model\TableNameMap;
 
 /**
  * Builds a MySQL-family schema from DBTNG's normalized physical model. */
@@ -19,7 +20,7 @@ final class MysqlSchemaBuilder {
 
   public function __construct(private readonly ImportTypeMapper $types) {}
 
-  public function createTables(Connection $destination, DatabaseInventory $inventory): void {
+  public function createTables(Connection $destination, DatabaseInventory $inventory, ?TableNameMap $tableNames = NULL): void {
     if (strtolower($destination->driver()) !== 'mysql') {
       throw new \InvalidArgumentException('MysqlSchemaBuilder requires a MySQL-family destination connection.');
     }
@@ -39,7 +40,11 @@ final class MysqlSchemaBuilder {
         throw new PortabilityException(sprintf('Table "%s" has no importable columns.', $table->name));
       }
       try {
-        $destination->query('CREATE TABLE ' . SqlIdentifier::quote($destination, $table->name) . ' (' . implode(', ', $definitions) . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        $destinationName = $tableNames?->destination($table->name) ?? $table->name;
+        if (strlen($destinationName) > 64) {
+          throw new PortabilityException(sprintf('Candidate table name for "%s" exceeds the MySQL identifier limit.', $table->name));
+        }
+        $destination->query('CREATE TABLE ' . SqlIdentifier::quote($destination, $destinationName) . ' (' . implode(', ', $definitions) . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
       }
       catch (\Throwable $exception) {
         $driverCode = 'unknown';
@@ -58,7 +63,7 @@ final class MysqlSchemaBuilder {
     }
   }
 
-  public function createIndexesAndConstraints(Connection $destination, DatabaseInventory $inventory): int {
+  public function createIndexesAndConstraints(Connection $destination, DatabaseInventory $inventory, ?TableNameMap $tableNames = NULL, ?string $constraintNamespace = NULL): int {
     $warnings = 0;
     foreach ($inventory->tables as $table) {
       foreach ($table->indexDefinitions as $index) {
@@ -84,7 +89,8 @@ final class MysqlSchemaBuilder {
         $kind = $index->unique ? 'UNIQUE INDEX' : 'INDEX';
         $name = 'dbtng_' . substr(hash('sha256', $table->name . "\0" . $index->name), 0, 24);
         try {
-          $destination->query('ALTER TABLE ' . SqlIdentifier::quote($destination, $table->name) . ' ADD ' . $kind . ' ' . SqlIdentifier::quote($destination, $name) . ' (' . implode(', ', $columns) . ')');
+          $destinationName = $tableNames?->destination($table->name) ?? $table->name;
+          $destination->query('ALTER TABLE ' . SqlIdentifier::quote($destination, $destinationName) . ' ADD ' . $kind . ' ' . SqlIdentifier::quote($destination, $name) . ' (' . implode(', ', $columns) . ')');
         }
         catch (\Throwable $exception) {
           throw $this->schemaOperationFailure('index', $table->name . '.' . $index->name, $exception);
@@ -92,7 +98,8 @@ final class MysqlSchemaBuilder {
       }
       foreach ($table->foreignKeys as $foreignKey) {
         try {
-          $destination->query('ALTER TABLE ' . SqlIdentifier::quote($destination, $table->name) . ' ADD ' . $this->foreignKeySql($destination, $foreignKey));
+          $destinationName = $tableNames?->destination($table->name) ?? $table->name;
+          $destination->query('ALTER TABLE ' . SqlIdentifier::quote($destination, $destinationName) . ' ADD ' . $this->foreignKeySql($destination, $foreignKey, $tableNames, $constraintNamespace));
         }
         catch (\Throwable $exception) {
           throw $this->schemaOperationFailure('foreign key', $table->name . '.' . $foreignKey->name, $exception);
@@ -186,10 +193,12 @@ final class MysqlSchemaBuilder {
     return $sql;
   }
 
-  private function foreignKeySql(Connection $destination, ForeignKeyDefinition $foreignKey): string {
-    $sql = 'CONSTRAINT ' . SqlIdentifier::quote($destination, 'dbtng_' . substr(hash('sha256', $foreignKey->name), 0, 24))
+  private function foreignKeySql(Connection $destination, ForeignKeyDefinition $foreignKey, ?TableNameMap $tableNames, ?string $constraintNamespace): string {
+    $constraintName = 'dbtng_' . substr(hash('sha256', ($constraintNamespace ?? '') . "\0" . $foreignKey->name), 0, 24);
+    $referencedTable = $tableNames?->destination($foreignKey->referencedTable) ?? $foreignKey->referencedTable;
+    $sql = 'CONSTRAINT ' . SqlIdentifier::quote($destination, $constraintName)
       . ' FOREIGN KEY (' . $this->columnList($destination, $foreignKey->columns) . ') REFERENCES '
-      . SqlIdentifier::quote($destination, $foreignKey->referencedTable)
+      . SqlIdentifier::quote($destination, $referencedTable)
       . ' (' . $this->columnList($destination, $foreignKey->referencedColumns) . ')';
     foreach (['onUpdate' => 'ON UPDATE', 'onDelete' => 'ON DELETE'] as $property => $label) {
       $action = strtoupper((string) $foreignKey->{$property});

@@ -10,6 +10,7 @@ use Drupal\dbtng_migrator\Model\ColumnDefinition;
 use Drupal\dbtng_migrator\Model\DatabaseEngine;
 use Drupal\dbtng_migrator\Model\DatabaseInventory;
 use Drupal\dbtng_migrator\Model\ForeignKeyDefinition;
+use Drupal\dbtng_migrator\Model\TableNameMap;
 use Drupal\dbtng_migrator\Model\IndexDefinition;
 
 /**
@@ -18,7 +19,7 @@ final class SqliteSchemaBuilder {
 
   public function __construct(private readonly ImportTypeMapper $types) {}
 
-  public function createTables(Connection $destination, DatabaseInventory $inventory): void {
+  public function createTables(Connection $destination, DatabaseInventory $inventory, ?TableNameMap $tableNames = NULL): void {
     if (strtolower($destination->driver()) !== 'sqlite') {
       throw new \InvalidArgumentException('SqliteSchemaBuilder requires a SQLite destination connection.');
     }
@@ -44,16 +45,17 @@ final class SqliteSchemaBuilder {
         $columns[] = 'PRIMARY KEY (' . $this->columnList($destination, $table->primaryKey) . ')';
       }
       foreach ($table->foreignKeys as $foreignKey) {
-        $columns[] = $this->foreignKeySql($destination, $foreignKey);
+        $columns[] = $this->foreignKeySql($destination, $foreignKey, $tableNames);
       }
       if ($columns === []) {
         throw new PortabilityException(sprintf('Table "%s" has no importable columns.', $table->name));
       }
-      $destination->query('CREATE TABLE ' . SqlIdentifier::quote($destination, $table->name) . ' (' . implode(', ', $columns) . ')');
+      $destinationName = $tableNames?->destination($table->name) ?? $table->name;
+      $destination->query('CREATE TABLE ' . SqlIdentifier::quote($destination, $destinationName) . ' (' . implode(', ', $columns) . ')');
     }
   }
 
-  public function createIndexes(Connection $destination, DatabaseInventory $inventory): void {
+  public function createIndexes(Connection $destination, DatabaseInventory $inventory, ?TableNameMap $tableNames = NULL): void {
     foreach ($inventory->tables as $table) {
       foreach ($table->indexDefinitions as $index) {
         if ($index->primary || $index->columns === []) {
@@ -71,7 +73,8 @@ final class SqliteSchemaBuilder {
           $columns[] = SqlIdentifier::quote($destination, $column->name) . ($column->descending ? ' DESC' : '');
         }
         $unique = $index->unique ? 'UNIQUE ' : '';
-        $destination->query('CREATE ' . $unique . 'INDEX ' . SqlIdentifier::quote($destination, $name) . ' ON ' . SqlIdentifier::quote($destination, $table->name) . ' (' . implode(', ', $columns) . ')');
+        $destinationName = $tableNames?->destination($table->name) ?? $table->name;
+        $destination->query('CREATE ' . $unique . 'INDEX ' . SqlIdentifier::quote($destination, $name) . ' ON ' . SqlIdentifier::quote($destination, $destinationName) . ' (' . implode(', ', $columns) . ')');
       }
     }
   }
@@ -99,10 +102,11 @@ final class SqliteSchemaBuilder {
     return $sql;
   }
 
-  private function foreignKeySql(Connection $destination, ForeignKeyDefinition $foreignKey): string {
+  private function foreignKeySql(Connection $destination, ForeignKeyDefinition $foreignKey, ?TableNameMap $tableNames): string {
+    $referencedTable = $tableNames?->destination($foreignKey->referencedTable) ?? $foreignKey->referencedTable;
     $sql = 'CONSTRAINT ' . SqlIdentifier::quote($destination, $foreignKey->name)
       . ' FOREIGN KEY (' . $this->columnList($destination, $foreignKey->columns) . ') REFERENCES '
-      . SqlIdentifier::quote($destination, $foreignKey->referencedTable)
+      . SqlIdentifier::quote($destination, $referencedTable)
       . ' (' . $this->columnList($destination, $foreignKey->referencedColumns) . ')';
     foreach (['onUpdate' => 'ON UPDATE', 'onDelete' => 'ON DELETE'] as $property => $label) {
       $action = strtoupper((string) $foreignKey->{$property});

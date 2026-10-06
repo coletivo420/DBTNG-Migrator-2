@@ -31,7 +31,7 @@ final class SqliteNativeRestoreAdapter {
     if (realpath($sourcePath) === realpath($targetPath)) {
       throw new DbtngException('SQLite restore artifact and standby path must be distinct.');
     }
-    if (is_link($targetPath) || is_link(dirname($targetPath)) || !is_dir(dirname($targetPath))) {
+    if (is_link(dirname($targetPath)) || !is_dir(dirname($targetPath))) {
       throw new DbtngException('SQLite standby path or parent directory is unsafe.');
     }
     $directory = realpath(dirname($targetPath));
@@ -40,6 +40,14 @@ final class SqliteNativeRestoreAdapter {
       || !str_starts_with($directory . DIRECTORY_SEPARATOR, rtrim($private, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)
       || (defined('DRUPAL_ROOT') && str_starts_with($directory . DIRECTORY_SEPARATOR, rtrim((string) realpath(DRUPAL_ROOT), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR))) {
       throw new DbtngException('SQLite standby must remain under private storage and outside the webroot.');
+    }
+    if (is_link($targetPath)) {
+      $publishedPath = realpath($targetPath);
+      if ($publishedPath === FALSE
+        || !str_starts_with($publishedPath, $directory . DIRECTORY_SEPARATOR . 'generations' . DIRECTORY_SEPARATOR)
+        || !is_file($publishedPath)) {
+        throw new DbtngException('SQLite restore pointer must resolve to a private DBTNG generation.');
+      }
     }
     $directoryMode = fileperms($directory);
     if ($directoryMode === FALSE || ($directoryMode & 0077) !== 0) {

@@ -9,6 +9,13 @@ namespace Drupal\dbtng_migrator\Model;
  */
 final readonly class SnapshotManifest {
 
+  /**
+   * Creates a versioned description of a standby result.
+   *
+   * @param list<string> $intentionalExclusions
+   *   Explicit tables or objects omitted by the selected projection.
+   */
+
   public function __construct(
     public string $format,
     public string $snapshotId,
@@ -29,6 +36,15 @@ final readonly class SnapshotManifest {
     public string $previousDestinationState = 'empty',
     public string $destinationPolicy = 'abort',
     public ?string $manifestPath = NULL,
+    public ?string $rebuildId = NULL,
+    public ?string $schemaFingerprint = NULL,
+    public ?string $reconciliationStatus = NULL,
+    public ?string $candidateIdentifier = NULL,
+    public ?string $publishedIdentifier = NULL,
+    public ?string $previousPublishedIdentifier = NULL,
+    public ?string $validationStatus = NULL,
+    public bool $fullFidelity = TRUE,
+    public array $intentionalExclusions = [],
   ) {}
 
 }

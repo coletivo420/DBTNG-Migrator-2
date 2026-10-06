@@ -5,11 +5,9 @@ declare(strict_types=1);
 namespace Drupal\dbtng_migrator\Import;
 
 use Drupal\dbtng_migrator\Model\DatabaseTopology;
-use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Database\StatementInterface;
-use Drupal\Core\Database\Statement\FetchAs;
 use Drupal\Core\Site\Settings;
 use Drupal\dbtng_migrator\Connection\DatabaseTopologyResolver;
 use Drupal\dbtng_migrator\Contract\ImportManagerInterface;
@@ -17,20 +15,13 @@ use Drupal\dbtng_migrator\Destination\DestinationPreparationManager;
 use Drupal\dbtng_migrator\Destination\DestinationStateInspectionManager;
 use Drupal\dbtng_migrator\Exception\DbtngException;
 use Drupal\dbtng_migrator\Model\DatabaseEngine;
-use Drupal\dbtng_migrator\Model\DatabaseInventory;
 use Drupal\dbtng_migrator\Model\ImportRequest;
-use Drupal\dbtng_migrator\Model\ReplicationDecision;
 use Drupal\dbtng_migrator\Model\ReplicationProfile;
 use Drupal\dbtng_migrator\Model\SnapshotManifest;
-use Drupal\dbtng_migrator\Policy\CleanReplicationPolicy;
 use Drupal\dbtng_migrator\Manifest\StandbyManifestStore;
-use Drupal\dbtng_migrator\Schema\MysqlSchemaBuilder;
-use Drupal\dbtng_migrator\Schema\MysqlIntegrityChecker;
-use Drupal\dbtng_migrator\Schema\PortabilityAnalyzer;
 use Drupal\dbtng_migrator\Schema\SchemaIntrospectionManager;
-use Drupal\dbtng_migrator\Schema\SqlIdentifier;
-use Drupal\dbtng_migrator\Schema\SqliteSchemaBuilder;
 use Drupal\dbtng_migrator\Model\DestinationState;
+use Drupal\dbtng_migrator\Operation\OperationLock;
 
 /**
  * Performs validated bidirectional cross-engine logical imports. */
@@ -40,16 +31,10 @@ final class ImportManager implements ImportManagerInterface {
     private readonly DatabaseTopologyResolver $resolver,
     private readonly SchemaIntrospectionManager $introspector,
     private readonly DestinationStateInspectionManager $destinationInspector,
-    private readonly PortabilityAnalyzer $portabilityAnalyzer,
-    private readonly ImportPortabilityGate $portabilityGate,
     private readonly DestinationPreparationManager $preparation,
-    private readonly MysqlSchemaBuilder $mysqlBuilder,
-    private readonly SqliteSchemaBuilder $sqliteBuilder,
-    private readonly RowTransfer $transfer,
-    private readonly CleanReplicationPolicy $cleanPolicy,
-    private readonly ConfigFactoryInterface $configFactory,
     private readonly StandbyManifestStore $manifestStore,
-    private readonly MysqlIntegrityChecker $mysqlIntegrityChecker,
+    private readonly LogicalSnapshotBuilder $snapshotBuilder,
+    private readonly OperationLock $operationLock,
   ) {}
 
   public function import(ImportRequest $request): SnapshotManifest {
@@ -61,6 +46,7 @@ final class ImportManager implements ImportManagerInterface {
     if ($initial->primary->identity === $initial->standby->identity) {
       throw new DbtngException('Logical import refused because primary and standby resolve to the same physical database.');
     }
+    $operationLock = $this->operationLock->acquire('import');
 
     [$source, $sourceKey] = $this->openDedicatedConnection($initial->primary->connection);
     $transactionOpen = FALSE;
@@ -79,9 +65,6 @@ final class ImportManager implements ImportManagerInterface {
           }
         }
       }
-      $report = $this->portabilityAnalyzer->analyze($inventory);
-      $this->portabilityGate->assertImportable($inventory, $initial->standby->engine, $report);
-
       // Preserve a populated SQLite standby until the validated candidate can
       // be atomically published. MySQL clear follows the explicit policy now.
       $preparation = $this->preparation->prepare(
@@ -102,41 +85,10 @@ final class ImportManager implements ImportManagerInterface {
         throw new DbtngException('MySQL standby was not empty after the configured preparation policy.');
       }
 
-      if ($candidate->driver() === 'sqlite') {
-        $candidate->query('PRAGMA foreign_keys = OFF');
-        $this->sqliteBuilder->createTables($candidate, $inventory);
-      }
-      else {
-        $this->mysqlBuilder->createTables($candidate, $inventory);
-      }
-
-      $expectedRows = [];
-      foreach ($inventory->tables as $table) {
-        $expectedRows[$table->name] = $request->profile === ReplicationProfile::Clean
-          && $this->cleanPolicy->tableDecision($table) === ReplicationDecision::SchemaOnly
-          ? 0
-          : $this->countRows($source, $table->name);
-      }
-      $settings = $this->configFactory->get('dbtng_migrator.settings');
-      $batchRows = max(1, (int) ($settings->get('snapshot.batch_rows') ?? 500));
-      $batchBytes = max(1024, (int) ($settings->get('snapshot.batch_bytes') ?? 4194304));
-      $transferStats = $this->transfer->transfer($source, $candidate, $inventory, $request->profile, $batchRows, $batchBytes);
-
-      $indexWarnings = 0;
-      if ($candidate->driver() === 'mysql') {
-        $indexWarnings = $this->mysqlBuilder->createIndexesAndConstraints($candidate, $inventory);
-      }
-      else {
-        $this->sqliteBuilder->createIndexes($candidate, $inventory);
-        $candidate->query('PRAGMA foreign_keys = ON');
-      }
-      $this->validateSchema($candidate, $inventory);
-      $this->validateRows($candidate, $inventory, $expectedRows);
-      $this->validateEngineIntegrity($candidate, $inventory);
-
-      $tableCount = count($inventory->tables);
-      $rowCount = array_sum($expectedRows);
-      $peakMemory = memory_get_peak_usage(TRUE);
+      $build = $this->snapshotBuilder->build($source, $candidate, $inventory, $request->profile);
+      $tableCount = $build->tableCount;
+      $rowCount = $build->rowCount;
+      $peakMemory = $build->peakMemoryBytes;
       if ($current->standby->engine === DatabaseEngine::Sqlite) {
         Database::removeConnection($candidateKey);
         $candidate = NULL;
@@ -167,9 +119,9 @@ final class ImportManager implements ImportManagerInterface {
         $tableCount,
         $rowCount,
         $standbyHash,
-        $transferStats['bytes'],
+        $build->bytesTransferred,
         $peakMemory,
-        $report->countBySeverity('warning') + $indexWarnings,
+        $build->portabilityWarnings,
         $preparation->safetyBackup?->path,
         $preparation->safetyBackup?->sha256,
         $preparation->previousState->value,
@@ -240,6 +192,7 @@ final class ImportManager implements ImportManagerInterface {
       if ($candidatePath !== NULL && is_file($candidatePath)) {
         unlink($candidatePath);
       }
+      $operationLock->release();
     }
   }
 
@@ -323,72 +276,6 @@ final class ImportManager implements ImportManagerInterface {
       Database::removeConnection($key);
       unlink($candidate);
       throw new DbtngException('Unable to open the isolated SQLite import candidate.', 0, $exception);
-    }
-  }
-
-  private function countRows(Connection $connection, string $table): int {
-    $statement = $connection->query('SELECT COUNT(*) FROM ' . SqlIdentifier::quote($connection, $table));
-    if (!$statement instanceof StatementInterface) {
-      throw new DbtngException('Unable to count a source table inside the consistent snapshot.');
-    }
-    return (int) $statement->fetchField();
-  }
-
-  private function validateSchema(Connection $destination, DatabaseInventory $expected): void {
-    $actual = $this->introspector->inspect($destination);
-    $expectedNames = array_map(static fn ($table): string => $table->name, $expected->tables);
-    $actualNames = array_map(static fn ($table): string => $table->name, $actual->tables);
-    sort($expectedNames);
-    sort($actualNames);
-    if ($expectedNames !== $actualNames) {
-      throw new DbtngException('Destination schema validation failed: table names differ from the source inventory.');
-    }
-    $expectedByName = [];
-    foreach ($expected->tables as $table) {
-      $expectedByName[$table->name] = $table;
-    }
-    foreach ($actual->tables as $table) {
-      $source = $expectedByName[$table->name];
-      $sourceColumns = array_map(static fn ($column): string => $column->name, array_filter($source->columns, static fn ($column): bool => !$column->hidden));
-      $actualColumns = array_map(static fn ($column): string => $column->name, array_filter($table->columns, static fn ($column): bool => !$column->hidden));
-      if ($sourceColumns !== $actualColumns || $source->primaryKey !== $table->primaryKey) {
-        throw new DbtngException(sprintf('Destination schema validation failed for table "%s".', $table->name));
-      }
-    }
-  }
-
-  /**
-   * Compares destination row totals against the source snapshot.
-   *
-   * @param array<string, int> $expected
-   *   Expected count per physical table.
-   */
-  private function validateRows(Connection $destination, DatabaseInventory $inventory, array $expected): void {
-    foreach ($inventory->tables as $table) {
-      $actual = $this->countRows($destination, $table->name);
-      if ($actual !== $expected[$table->name]) {
-        throw new DbtngException(sprintf('Row-count validation failed for table "%s".', $table->name));
-      }
-    }
-  }
-
-  private function validateEngineIntegrity(Connection $destination, DatabaseInventory $inventory): void {
-    if (strtolower($destination->driver()) === 'sqlite') {
-      $statement = $destination->query('PRAGMA integrity_check');
-      if (!$statement instanceof StatementInterface) {
-        throw new DbtngException('SQLite integrity_check did not return a result.');
-      }
-      $integrity = $statement->fetchField();
-      if ($integrity !== 'ok') {
-        throw new DbtngException('SQLite import failed PRAGMA integrity_check.');
-      }
-      $statement = $destination->query('PRAGMA foreign_key_check');
-      if ($statement instanceof StatementInterface && $statement->fetch(FetchAs::Associative) !== FALSE) {
-        throw new DbtngException('SQLite import failed PRAGMA foreign_key_check.');
-      }
-    }
-    else {
-      $this->mysqlIntegrityChecker->validate($destination, $inventory);
     }
   }
 

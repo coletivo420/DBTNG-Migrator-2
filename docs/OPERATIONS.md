@@ -19,7 +19,7 @@ Operators must be able to observe:
 
 A configured standby starts uninitialized.
 
-The planned operation:
+The import operation:
 
 ```bash
 drush dbtng:import
@@ -49,9 +49,9 @@ drush dbtng:backup --role=standby
 
 The 2026-10-06 live test on `dbtng.toca.net.br` created MariaDB and SQLite backups in both role assignments. The preflight correctly returned BLOCKED in both directions because the target database is a separate Drupal install (56 tables), not an empty or synchronized standby. SQLite snapshots passed an integrity check with Drupal's custom collation registered, including a live WAL write test. The current site selector was restored to MariaDB primary.
 
-Restore targets the configured standby and accepts only its engine's native backup format. This command is planned but not implemented. Use logical `dbtng:import` for cross-engine transfer once available.
+Restore targets the configured standby and accepts only its engine's native backup format. Use logical `dbtng:import` for cross-engine transfer.
 
-Destination preparation and `abort | backup_then_clear | clear` policies are not operational yet; no clearing or restore command is available.
+`dbtng:rebuild --profile=full|clean` constructs an isolated candidate and leaves the currently published standby untouched until validation, reconciliation and the final write fence pass. `dbtng:reconcile` is read-only. A `clean` result is standby-only and must not be promoted as a full copy.
 
 ## Topology source
 

@@ -35,7 +35,7 @@ final class SqliteDestinationCleaner implements DestinationCleanerInterface {
     if ($path === NULL || $path === '' || $path === ':memory:' || !is_string($privateRoot) || $privateRoot === '') {
       throw new DbtngException('SQLite clear requires a file-backed standby under private storage.');
     }
-    if (is_link($path) || is_link(dirname($path)) || !is_dir(dirname($path))) {
+    if (is_link(dirname($path)) || !is_dir(dirname($path))) {
       throw new DbtngException('SQLite standby path or parent directory is unsafe.');
     }
     $directory = realpath(dirname($path));
@@ -44,6 +44,12 @@ final class SqliteDestinationCleaner implements DestinationCleanerInterface {
       || !str_starts_with($directory . DIRECTORY_SEPARATOR, rtrim($private, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)
       || (defined('DRUPAL_ROOT') && str_starts_with($directory . DIRECTORY_SEPARATOR, rtrim((string) realpath(DRUPAL_ROOT), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR))) {
       throw new DbtngException('SQLite standby must be stored outside the webroot under the configured private directory.');
+    }
+    if (is_link($path)) {
+      $published = realpath($path);
+      if ($published === FALSE || !str_starts_with($published, $directory . DIRECTORY_SEPARATOR . 'generations' . DIRECTORY_SEPARATOR) || !is_file($published)) {
+        throw new DbtngException('SQLite standby pointer must resolve to a private DBTNG generation.');
+      }
     }
     $directoryMode = fileperms($directory);
     if ($directoryMode === FALSE || ($directoryMode & 0077) !== 0) {

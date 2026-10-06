@@ -127,10 +127,6 @@ final class DatabaseTopologyResolver implements DatabaseTopologyResolverInterfac
     if ($path === '' || $path === ':memory:') {
       return 'sqlite:memory:' . spl_object_id($connection);
     }
-    $realPath = realpath($path);
-    if ($realPath !== FALSE) {
-      return 'sqlite:' . $realPath;
-    }
     $directory = realpath(dirname($path));
     return 'sqlite:' . ($directory === FALSE ? dirname($path) : $directory) . '/' . basename($path);
   }
