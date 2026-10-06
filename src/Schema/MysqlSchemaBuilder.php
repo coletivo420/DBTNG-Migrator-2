@@ -79,10 +79,20 @@ final class MysqlSchemaBuilder {
         }
         $kind = $index->unique ? 'UNIQUE INDEX' : 'INDEX';
         $name = 'dbtng_' . substr(hash('sha256', $table->name . "\0" . $index->name), 0, 24);
-        $destination->query('ALTER TABLE ' . SqlIdentifier::quote($destination, $table->name) . ' ADD ' . $kind . ' ' . SqlIdentifier::quote($destination, $name) . ' (' . implode(', ', $columns) . ')');
+        try {
+          $destination->query('ALTER TABLE ' . SqlIdentifier::quote($destination, $table->name) . ' ADD ' . $kind . ' ' . SqlIdentifier::quote($destination, $name) . ' (' . implode(', ', $columns) . ')');
+        }
+        catch (\Throwable $exception) {
+          throw $this->schemaOperationFailure('index', $table->name . '.' . $index->name, $exception);
+        }
       }
       foreach ($table->foreignKeys as $foreignKey) {
-        $destination->query('ALTER TABLE ' . SqlIdentifier::quote($destination, $table->name) . ' ADD ' . $this->foreignKeySql($destination, $foreignKey));
+        try {
+          $destination->query('ALTER TABLE ' . SqlIdentifier::quote($destination, $table->name) . ' ADD ' . $this->foreignKeySql($destination, $foreignKey));
+        }
+        catch (\Throwable $exception) {
+          throw $this->schemaOperationFailure('foreign key', $table->name . '.' . $foreignKey->name, $exception);
+        }
       }
     }
   }
@@ -134,6 +144,17 @@ final class MysqlSchemaBuilder {
       throw new PortabilityException('A column default cannot be represented as a MySQL literal.');
     }
     return "'" . str_replace("'", "''", $value) . "'";
+  }
+
+  private function schemaOperationFailure(string $kind, string $name, \Throwable $exception): DbtngException {
+    $driverCode = 'unknown';
+    for ($cause = $exception; $cause !== NULL; $cause = $cause->getPrevious()) {
+      if ($cause instanceof \PDOException && isset($cause->errorInfo[1])) {
+        $driverCode = (string) $cause->errorInfo[1];
+        break;
+      }
+    }
+    return new DbtngException(sprintf('MySQL %s creation failed for "%s" (driver code %s).', $kind, $name, $driverCode), 0, $exception);
   }
 
 }
