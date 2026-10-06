@@ -73,12 +73,24 @@ final class PreflightCommand extends Command {
       $report->countBySeverity('error'),
     ));
 
-    foreach ($destination->reasons as $reason) {
+    foreach (array_slice($destination->reasons, 0, 20) as $reason) {
       $output->writeln(sprintf('<error>DESTINATION OBJECT: %s</error>', $reason));
     }
-    foreach ($report->issues as $issue) {
+    if (count($destination->reasons) > 20) {
+      $output->writeln(sprintf('<comment>... and %d additional destination objects.</comment>', count($destination->reasons) - 20));
+    }
+    $errors = array_values(array_filter($report->issues, static fn ($issue): bool => $issue->severity === 'error'));
+    $warnings = array_values(array_filter($report->issues, static fn ($issue): bool => $issue->severity !== 'error'));
+    foreach ($errors as $issue) {
       $location = implode('.', array_filter([$issue->table, $issue->column, $issue->objectName]));
-      $output->writeln(sprintf('<%s>%s: %s%s</%s>', $issue->severity === 'error' ? 'error' : 'comment', strtoupper($issue->severity), $location === '' ? '' : $location . ' — ', $issue->message, $issue->severity === 'error' ? 'error' : 'comment'));
+      $output->writeln(sprintf('<error>ERROR: %s%s</error>', $location === '' ? '' : $location . ' — ', $issue->message));
+    }
+    foreach (array_slice($warnings, 0, 20) as $issue) {
+      $location = implode('.', array_filter([$issue->table, $issue->column, $issue->objectName]));
+      $output->writeln(sprintf('<comment>WARNING: %s%s</comment>', $location === '' ? '' : $location . ' — ', $issue->message));
+    }
+    if (count($warnings) > 20) {
+      $output->writeln(sprintf('<comment>... and %d additional portability warnings.</comment>', count($warnings) - 20));
     }
 
     $toolsAvailable = $this->requiredToolsAvailable($topology->primary->product, $topology->standby->product);
