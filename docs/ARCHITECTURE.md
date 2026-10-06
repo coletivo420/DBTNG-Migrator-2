@@ -169,3 +169,11 @@ The canonical integration site is `dbtng.toca.net.br`. Its deployment settings m
 ## Future entity projection
 
 Clean revision filtering needs an entity-aware projection using Drupal entity storage/table mappings. It must understand base, data, revision, revision-data and dedicated field tables as a group.
+
+## Phase C implementation
+
+The runtime resolves primary and standby roles before any operation. Destination cleaners and native restore adapters accept only the configured standby, and reject matching primary identity even if the role metadata is inconsistent. MySQL-family and SQLite native restore are same-engine operations; cross-engine movement uses logical import.
+
+Logical import builds destination DDL from physical inventory and transfers rows with cursor-based bounded batches. MariaDB/MySQL uses a dedicated repeatable-read consistent snapshot; SQLite uses a read transaction. The destination is marked initialized only after schema, row-count, integrity and engine-specific checks succeed. SQLite publication uses a validated candidate file. MariaDB non-unique indexes that exceed InnoDB key limits are shortened with an explicit portability warning; unique indexes that cannot be preserved block strict import.
+
+The `clean` profile is limited to MariaDB/MySQL primary -> SQLite standby. The full profile remains required for any standby intended for promotion. CDC, reconciliation and continuous sync remain future work.

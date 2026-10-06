@@ -313,3 +313,9 @@ Use installed command help as the final authority because Virtualmin versions ca
 - SQLite Backup: https://www.drupal.org/project/sqlite_backup
 - SQLite Online Backup API: https://www.sqlite.org/backup.html
 - PHP SQLite3::backup(): https://www.php.net/manual/en/sqlite3.backup.php
+
+## Phase C integration result
+
+The real integration site is `dbtng.toca.net.br` only. Phase C exercised both full logical-import directions, the SQLite standby clean projection, native restore for each engine, non-empty policies and primary protection. The application is left with MariaDB primary and SQLite standby. A retained 1,200-row development fixture table was used to cross batch boundaries and verify unknown-table preservation. The first MariaDB -> SQLite physical portability analysis reported 343 warnings; those are retained as diagnostic evidence.
+
+Never run `virtualmin list-domains --multiline` in normal diagnosis or automation; it can print database passwords. Do not reveal credentials in terminal output, logs, reports, CI or chat. The dedicated site's credential was rotated before Phase C and remains only in its private settings file.

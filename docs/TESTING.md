@@ -154,6 +154,12 @@ For **both primary engines**:
 
 The development environment must be able to switch between the two role assignments through deployment settings without editing module code.
 
+## Phase C live acceptance
+
+The canonical host `dbtng.toca.net.br` was exercised on Drupal 11.4.8, PHP 8.4.26, Drush 13.8.0, MariaDB 11.8.6 and SQLite 3.46.1. Both full import directions and the MariaDB -> SQLite clean profile passed with schema/row validation; SQLite integrity and foreign-key checks passed. Drupal status, requirements, cache rebuild, HTTP 200 and representative entity CRUD passed after promoting each full-import destination in turn. Native restore, safety-backup preparation, explicit clear, abort, wrong-engine/corrupt-gzip rejection and primary-clear refusal were also exercised.
+
+A 1,200-row unknown-table fixture crossed multiple batches. The observed peak PHP memory was 30 MiB for the tested live imports; this is a test observation, not a general memory ceiling. The initial MariaDB -> SQLite run reported 343 portability warnings, which remain documented rather than suppressed. PHPUnit currently has 61 tests and 190 assertions; its existing deprecation notices are recorded during quality runs.
+
 ## Production-readiness gate
 
 Do not call the project production-ready until both directions have:

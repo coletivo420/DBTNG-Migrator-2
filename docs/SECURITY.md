@@ -38,3 +38,7 @@ A safety backup produced by `backup_then_clear` is sensitive data and receives t
 ## Disaster recovery scope
 
 A database standby is not a complete Drupal disaster-recovery backup. Uploaded/private files, source code, Composer dependencies, deployment settings and secrets require separate backup/deployment procedures.
+
+## Administrative output and credentials
+
+Do not use `virtualmin list-domains --multiline` for routine automation or diagnosis: this output may contain database passwords. Use specific Virtualmin queries that omit secret fields. Never emit credentials in terminal logs, reports, CI or chat. Temporary native-client credential files must be private and removed in guaranteed cleanup paths; SQLite files, safety backups and import manifests stay outside the public document root with restrictive permissions.

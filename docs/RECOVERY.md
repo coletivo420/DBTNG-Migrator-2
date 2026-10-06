@@ -41,3 +41,7 @@ controlled authority switch
 ```
 
 Automatic merge with an old divergent primary timeline is explicitly out of scope for the initial releases.
+
+## Native recovery in Phase C
+
+Native restore is a same-engine standby operation. `dbtng:restore` validates input before destructive preparation, applies the selected non-empty policy, restores through the matching native path, re-introspects and validates before recording initialized state. Cross-engine recovery uses `dbtng:import` and a logical schema mapping; SQL dumps are never translated across engines. Do not promote a `clean` SQLite projection because transient tables are intentionally empty.

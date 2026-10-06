@@ -126,3 +126,11 @@ Every implementation commit should answer:
 - Was the Virtualmin integration environment used, and if not, why was it unnecessary?
 
 Do not claim production readiness until the beta/stable criteria in `docs/TESTING.md` are satisfied.
+
+## Phase C regression checks
+
+- Keep `dbtng.toca.net.br` as the only canonical development hostname.
+- Never run `virtualmin list-domains --multiline` in normal automation or diagnostics; it may expose database passwords. Administrative commands and reports must keep credentials out of terminal output, logs, CI and chat.
+- Before destructive work, prove the target is the configured standby and physically distinct from primary. Never clear the primary.
+- Logical imports must stream bounded batches, validate schema/data/integrity, and publish initialized state only after all checks pass.
+- Preserve the distinction between physical portability warnings and strict blockers; do not suppress warnings just to lower counts.

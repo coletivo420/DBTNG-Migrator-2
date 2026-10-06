@@ -157,7 +157,7 @@ This repository is in the early operational foundation phase. Phase B implements
 
 1. Project skeleton, selectable topology contracts, documentation and CI. (complete)
 2. Runtime topology resolver, doctor/preflight, MariaDB/MySQL and SQLite physical inventory, destination state inspection, portability analysis, and same-engine native backups. (implemented and live-validated; CI/merge pending)
-3. Controlled standby clearing, native restore and logical import/bootstrap in both directions.
+3. Controlled standby clearing, native restore and logical import/bootstrap in both directions. (implemented and live-validated; CI/merge pending)
 4. Destination builders and consistent rebuilds for both directions.
 5. Engine-specific durable change capture.
 6. Continuous synchronization and reconciliation.

@@ -24,7 +24,7 @@ All notable changes to DBTNG Migrator 2 will be documented here.
 - Upstream component/provenance policy covering Backup and Migrate, SQLite Backup and Drush SQL tooling.
 
 ### Changed
-- Phase status now reflects implemented topology/preflight/inventory/backup foundations; native restore, destination clearing, logical import and continuous synchronization remain unimplemented.
+- Phase status now reflects implemented topology, inventory, backup, standby clearing, native restore and bidirectional logical bootstrap import; continuous synchronization remains unimplemented.
 - Renamed the canonical Virtualmin integration host to `dbtng.toca.net.br`, preserving the dedicated site's Unix account, home, database and document root.
 - SQLite online snapshots register Drupal's `NOCASE_UTF8` collation before integrity checks so Drupal indexes validate correctly.
 - Replication profile defaults to conservative `full`; `clean` is opt-in.

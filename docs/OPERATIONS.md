@@ -66,3 +66,5 @@ Schema-changing deployments (`composer` updates, module install/uninstall and `d
 ## Development vs production
 
 `dbtng.toca.net.br` is explicitly disposable integration infrastructure. Permission to reset it does not imply permission to reset or reconfigure any production Virtualmin site.
+
+Phase C commands are available through Drush: `dbtng:doctor`, `dbtng:preflight`, `dbtng:backup`, `dbtng:restore` and `dbtng:import`. The import/restore target is always the configured standby. Use `abort` unless a verified safety backup followed by standby clearing is intended. The live environment is left with MariaDB primary and SQLite standby; the latest SQLite standby is the documented `clean` projection and must not be promoted as a full-equivalent copy.

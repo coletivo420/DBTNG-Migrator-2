@@ -43,3 +43,9 @@ Empty-destination import is required in both directions before continuous synchr
 ## Unknown objects
 
 Unknown tables default to preservation (`copy`) unless an operator explicitly defines a policy. This prevents new contrib/custom tables from being silently omitted after module upgrades.
+
+## Phase C findings
+
+The live MariaDB -> SQLite inventory produced 343 initial warnings. They were kept as evidence and not bulk-suppressed. These warnings include conditional physical semantics such as unsigned types/collations and index-prefix differences. During SQLite -> MariaDB schema construction, non-unique indexes exceeding the InnoDB key-byte limit are bounded with a prefix and reported as warnings; strict unique-index semantics are never silently weakened and can block import. Warning totals are tied to the source's physical schema and can change after a round trip.
+
+The live test also confirmed that all tables, including unknown application tables, are copied by `full`; `clean` omits only its documented transient table patterns and retains queues, key-value tables and unknown tables. Generated expressions and unsupported semantics remain subject to strict analysis. An import with a blocker must fail before it reports initialization.
