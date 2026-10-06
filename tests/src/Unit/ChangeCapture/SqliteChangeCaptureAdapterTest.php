@@ -43,6 +43,13 @@ final class SqliteChangeCaptureAdapterTest extends DrupalDatabaseUnitTestCase {
     self::assertSame(6, $status->installedTriggers);
     self::assertSame(1, $status->tableDirtyTables);
 
+    $client = $connection->getClientConnection();
+    self::assertInstanceOf(\PDO::class, $client);
+    $client->beginTransaction();
+    $client->exec("INSERT INTO items (id, name) VALUES (99, 'rolled back')");
+    $client->rollBack();
+    self::assertSame([], $adapter->pending($connection, 10));
+
     $connection->query("INSERT INTO items (id, name) VALUES (1, 'one')");
     $connection->query("UPDATE items SET id = 2, name = 'two' WHERE id = 1");
     $connection->query('DELETE FROM items WHERE id = 2');

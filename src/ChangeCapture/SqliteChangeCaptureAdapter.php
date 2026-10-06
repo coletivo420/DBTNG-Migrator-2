@@ -34,10 +34,10 @@ final class SqliteChangeCaptureAdapter implements ChangeCaptureAdapterInterface 
     $log = SqlIdentifier::quote($connection, CaptureSchema::LOG_TABLE);
     $connection->query(
       'CREATE TABLE IF NOT EXISTS ' . $log
-      . " (sequence INTEGER PRIMARY KEY AUTOINCREMENT, table_name TEXT NOT NULL, operation TEXT NOT NULL CHECK (operation IN ('insert','update','delete')), identity_kind TEXT NOT NULL CHECK (identity_kind IN ('primary_key','table')), key_json TEXT NULL, old_key_json TEXT NULL, captured_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))",
+      . " (event_id INTEGER PRIMARY KEY AUTOINCREMENT, table_name TEXT NOT NULL, operation TEXT NOT NULL CHECK (operation IN ('insert','update','delete')), identity_kind TEXT NOT NULL CHECK (identity_kind IN ('primary_key','table')), key_json TEXT NULL, old_key_json TEXT NULL, captured_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))",
     );
     $connection->query(
-      'CREATE INDEX IF NOT EXISTS "dbtng_migrator_change_log_table_seq" ON ' . $log . ' (table_name, sequence)',
+      'CREATE INDEX IF NOT EXISTS "dbtng_migrator_change_log_table_seq" ON ' . $log . ' (table_name, event_id)',
     );
 
     foreach ($inventory->tables as $table) {
@@ -99,9 +99,9 @@ final class SqliteChangeCaptureAdapter implements ChangeCaptureAdapterInterface 
       return [];
     }
     $statement = $connection->query(
-      'SELECT sequence, table_name, operation, identity_kind, key_json, old_key_json, captured_at FROM '
+      'SELECT event_id, table_name, operation, identity_kind, key_json, old_key_json, captured_at FROM '
       . SqlIdentifier::quote($connection, CaptureSchema::LOG_TABLE)
-      . ' ORDER BY sequence ASC LIMIT ' . $limit,
+      . ' ORDER BY event_id ASC LIMIT ' . $limit,
     );
     if ($statement === NULL) {
       throw new DbtngException('Unable to read the SQLite durable change log.');
@@ -129,7 +129,7 @@ final class SqliteChangeCaptureAdapter implements ChangeCaptureAdapterInterface 
     }
     $connection->query(
       'DELETE FROM ' . SqlIdentifier::quote($connection, CaptureSchema::LOG_TABLE)
-      . ' WHERE sequence IN (' . implode(', ', $placeholders) . ')',
+      . ' WHERE event_id IN (' . implode(', ', $placeholders) . ')',
       $parameters,
     );
   }
@@ -210,7 +210,7 @@ final class SqliteChangeCaptureAdapter implements ChangeCaptureAdapterInterface 
    */
   private function backlog(Connection $connection): array {
     $statement = $connection->query(
-      'SELECT COUNT(*) AS pending, MIN(sequence) AS oldest, MAX(sequence) AS newest FROM '
+      'SELECT COUNT(*) AS pending, MIN(event_id) AS oldest, MAX(event_id) AS newest FROM '
       . SqlIdentifier::quote($connection, CaptureSchema::LOG_TABLE),
     );
     $row = $statement?->fetchAssoc();
@@ -232,7 +232,7 @@ final class SqliteChangeCaptureAdapter implements ChangeCaptureAdapterInterface 
    */
   private function record(array $row): ChangeRecord {
     return new ChangeRecord(
-      (int) $row['sequence'],
+      (int) $row['event_id'],
       (string) $row['table_name'],
       ChangeOperation::from((string) $row['operation']),
       ChangeIdentityKind::from((string) $row['identity_kind']),
