@@ -322,3 +322,8 @@ Never run `virtualmin list-domains --multiline` in normal diagnosis or automatio
 # Phase D integration safety
 
 The only canonical host is `dbtng.toca.net.br`. The environment ends with MariaDB primary and SQLite standby. Its existing SQLite data may be a `clean` profile; never treat it as full-equivalent or promote it as a full standby. For Phase D full-promotion tests, run an explicit full rebuild and verify the published manifest before changing deployment settings. Do not run `virtualmin list-domains --multiline`; it can disclose database credentials. Keep all credential-bearing site files private and never include secrets in terminal logs or test reports.
+# Phase D validation state
+
+The canonical development host is `dbtng.toca.net.br`. The expected final role selection is MariaDB primary and SQLite standby. A CLEAN SQLite standby is intentionally not full-equivalent and must not be promoted as though it were FULL. The development validation for Phase D passed MariaDB -> SQLite FULL, SQLite -> MariaDB FULL and MariaDB -> SQLite CLEAN rebuilds; the final standby manifest records profile `clean` and reconciliation `MATCH`.
+
+Phase D uses immutable SQLite generations under `/home/bdtgn/private/dbtng/sqlite/generations`, with the configured SQLite path acting as an atomic symlink. MariaDB candidates use reserved staged-table and retained-generation prefixes within the dedicated schema. Do not delete these artifacts manually while a rebuild is active.

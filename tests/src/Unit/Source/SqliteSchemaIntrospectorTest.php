@@ -51,6 +51,16 @@ final class SqliteSchemaIntrospectorTest extends DrupalDatabaseUnitTestCase {
     self::assertEqualsCanonicalizing(['view', 'trigger'], array_map(static fn ($object): string => $object->type, $inventory->objects));
   }
 
+  public function testQuotedStringDefaultsAreReturnedAsValues(): void {
+    $connection = $this->sqliteConnection();
+    $connection->query("CREATE TABLE default_values (id INTEGER PRIMARY KEY, quoted TEXT DEFAULT 'it''s portable', plain VARCHAR(12) DEFAULT 'anonymous')");
+
+    $inventory = (new SqliteSchemaIntrospector())->inspect($connection);
+
+    self::assertSame("it's portable", $inventory->tables[0]->columns[1]->default);
+    self::assertSame('anonymous', $inventory->tables[0]->columns[2]->default);
+  }
+
   /**
    * Finds an inventoried table by its physical name.
    *

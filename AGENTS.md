@@ -37,6 +37,8 @@ This file is normative guidance for humans and AI coding agents. Architectural c
 31. **Database downloads and uploads are private sensitive artifacts.** Never stage them under public webroot or trust client-provided filenames/MIME types.
 32. **SQLite snapshot validation must register Drupal's `NOCASE_UTF8` collation.** Drupal indexes can depend on it; plain SQLite3 integrity checks otherwise fail on valid site databases.
 33. **Drush commands that inject Drupal services must declare the appropriate Drush bootstrap level.** Use the current Symfony `AsCommand` and `AutowireTrait` form supported by Drush 13.7+ and validate command discovery in the actual Composer installation layout.
+34. **Schema defaults are semantic values, not portable SQL fragments.** Introspect and decode only safe literal defaults, leave backend expressions for portability analysis, and quote string defaults with the destination driver's quoting rules.
+35. **Reserved candidate namespaces are part of rebuild safety.** Normal inventories hide DBTNG staging/archive objects, while explicit candidate validation must include the exact staged table set. SQLite candidate WAL/SHM sidecars must be closed and cleaned before publication.
 
 ## Current product boundary
 

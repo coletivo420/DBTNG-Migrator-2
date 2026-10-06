@@ -248,7 +248,7 @@ Import establishes a complete base state. Incremental sync may begin only after 
 
 Never start incremental synchronization against an arbitrary empty, partially imported or failed destination.
 
-## Planned CLI
+## Implemented CLI
 
 ```bash
 drush dbtng:import
@@ -272,6 +272,8 @@ Machine-readable preflight/results must expose clear exit states for:
 - source failure;
 - destination failure;
 - validation failure.
+
+`dbtng:rebuild --profile=full|clean` is available for an initialized standby. It uses an isolated candidate and preserves the prior publication until validation, reconciliation and the final write fence pass. Use `dbtng:reconcile` for read-only profile-aware drift reporting.
 
 ## Failure behavior
 
