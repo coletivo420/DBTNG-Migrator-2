@@ -168,8 +168,22 @@ final class ReconciliationEngine implements ReconciliationEngineInterface {
   }
 
   private function tableSchemaMatches(TableDefinition $source, TableDefinition $destination): bool {
-    $sourceColumns = array_map(static fn ($column): array => [$column->name, $column->portableType, $column->nullable], $source->columns);
-    $destColumns = array_map(static fn ($column): array => [$column->name, $column->portableType, $column->nullable], $destination->columns);
+    $sourceColumns = array_map(
+      static fn ($column): array => [
+        $column->name,
+        $column->portableType,
+        $column->nullable && !in_array($column->name, $source->primaryKey, TRUE),
+      ],
+      $source->columns,
+    );
+    $destColumns = array_map(
+      static fn ($column): array => [
+        $column->name,
+        $column->portableType,
+        $column->nullable && !in_array($column->name, $destination->primaryKey, TRUE),
+      ],
+      $destination->columns,
+    );
     if ($sourceColumns !== $destColumns || $source->primaryKey !== $destination->primaryKey) {
       return FALSE;
     }
