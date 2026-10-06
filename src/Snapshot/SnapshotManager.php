@@ -198,7 +198,12 @@ final class SnapshotManager implements RebuildManagerInterface, SnapshotManagerI
         throw $exception;
       }
       throw new DbtngException(
-        'Standby rebuild failed; the old published standby was retained.',
+        sprintf(
+          'Standby rebuild failed (%s at %s:%d); the old published standby was retained.',
+          $exception::class,
+          basename($exception->getFile()),
+          $exception->getLine(),
+        ),
         0,
         $exception,
       );
