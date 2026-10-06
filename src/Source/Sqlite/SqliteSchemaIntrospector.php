@@ -17,6 +17,7 @@ use Drupal\dbtng_migrator\Model\IndexColumnDefinition;
 use Drupal\dbtng_migrator\Model\IndexDefinition;
 use Drupal\dbtng_migrator\Model\TableDefinition;
 use Drupal\dbtng_migrator\Schema\PhysicalTypeMapper;
+use Drupal\dbtng_migrator\ChangeCapture\CaptureSchema;
 
 /**
  * Inventories SQLite's physical schema and omits SQLite-owned internal objects. */
@@ -36,6 +37,9 @@ final class SqliteSchemaIntrospector implements SourceSchemaIntrospectorInterfac
     foreach ($schemaRows as $row) {
       $type = strtolower((string) $row['type']);
       $name = (string) $row['name'];
+      if ($name === CaptureSchema::LOG_TABLE || str_starts_with($name, CaptureSchema::TRIGGER_PREFIX)) {
+        continue;
+      }
       if ($type === 'table') {
         $tableSql[$name] = (string) ($row['sql'] ?? '');
       }
