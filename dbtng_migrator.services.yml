@@ -36,8 +36,34 @@ services:
       - '@dbtng_migrator.destination.mysql'
       - '@dbtng_migrator.destination.sqlite'
 
+  dbtng_migrator.destination.cleaner.mysql:
+    class: Drupal\dbtng_migrator\Destination\Mysql\MysqlDestinationCleaner
+    arguments:
+      - '@dbtng_migrator.topology_resolver'
+      - '@dbtng_migrator.destination.manager'
+
+  dbtng_migrator.destination.cleaner.sqlite:
+    class: Drupal\dbtng_migrator\Destination\Sqlite\SqliteDestinationCleaner
+    arguments:
+      - '@dbtng_migrator.topology_resolver'
+
+  dbtng_migrator.destination.preparation:
+    class: Drupal\dbtng_migrator\Destination\DestinationPreparationManager
+    arguments:
+      - '@dbtng_migrator.topology_resolver'
+      - '@dbtng_migrator.destination.manager'
+      - '@dbtng_migrator.backup.manager'
+      - '@dbtng_migrator.destination.cleaner.mysql'
+      - '@dbtng_migrator.destination.cleaner.sqlite'
+
   dbtng_migrator.portability_analyzer:
     class: Drupal\dbtng_migrator\Schema\PortabilityAnalyzer
+
+  'Drupal\dbtng_migrator\Policy\CleanReplicationPolicy':
+    class: Drupal\dbtng_migrator\Policy\CleanReplicationPolicy
+
+  'Drupal\dbtng_migrator\Policy\FullReplicationPolicy':
+    class: Drupal\dbtng_migrator\Policy\FullReplicationPolicy
 
   dbtng_migrator.backup.directory_manager:
     class: Drupal\dbtng_migrator\Backup\BackupDirectoryManager
@@ -56,6 +82,58 @@ services:
       - '@dbtng_migrator.backup.mysql'
       - '@dbtng_migrator.backup.sqlite'
 
+  dbtng_migrator.restore.mysql:
+    class: Drupal\dbtng_migrator\Backup\MysqlNativeRestoreAdapter
+
+  dbtng_migrator.restore.sqlite:
+    class: Drupal\dbtng_migrator\Backup\SqliteNativeRestoreAdapter
+
+  dbtng_migrator.restore.manager:
+    class: Drupal\dbtng_migrator\Backup\NativeRestoreManager
+    arguments:
+      - '@dbtng_migrator.topology_resolver'
+      - '@dbtng_migrator.destination.preparation'
+      - '@dbtng_migrator.destination.manager'
+      - '@dbtng_migrator.schema.manager'
+      - '@dbtng_migrator.restore.mysql'
+      - '@dbtng_migrator.restore.sqlite'
+
+  dbtng_migrator.import.type_mapper:
+    class: Drupal\dbtng_migrator\Schema\ImportTypeMapper
+
+  dbtng_migrator.import.schema.mysql:
+    class: Drupal\dbtng_migrator\Schema\MysqlSchemaBuilder
+    arguments:
+      - '@dbtng_migrator.import.type_mapper'
+
+  dbtng_migrator.import.schema.sqlite:
+    class: Drupal\dbtng_migrator\Schema\SqliteSchemaBuilder
+    arguments:
+      - '@dbtng_migrator.import.type_mapper'
+
+  dbtng_migrator.import.portability_gate:
+    class: Drupal\dbtng_migrator\Import\ImportPortabilityGate
+
+  dbtng_migrator.import.row_transfer:
+    class: Drupal\dbtng_migrator\Import\RowTransfer
+    arguments:
+      - '@Drupal\dbtng_migrator\Policy\CleanReplicationPolicy'
+
+  dbtng_migrator.import.manager:
+    class: Drupal\dbtng_migrator\Import\ImportManager
+    arguments:
+      - '@dbtng_migrator.topology_resolver'
+      - '@dbtng_migrator.schema.manager'
+      - '@dbtng_migrator.destination.manager'
+      - '@dbtng_migrator.portability_analyzer'
+      - '@dbtng_migrator.import.portability_gate'
+      - '@dbtng_migrator.destination.preparation'
+      - '@dbtng_migrator.import.schema.mysql'
+      - '@dbtng_migrator.import.schema.sqlite'
+      - '@dbtng_migrator.import.row_transfer'
+      - '@Drupal\dbtng_migrator\Policy\CleanReplicationPolicy'
+      - '@config.factory'
+
   'Drupal\dbtng_migrator\Connection\DatabaseTopologyResolver':
     alias: dbtng_migrator.topology_resolver
 
@@ -67,6 +145,21 @@ services:
 
   'Drupal\dbtng_migrator\Backup\NativeBackupManager':
     alias: dbtng_migrator.backup.manager
+
+  'Drupal\dbtng_migrator\Backup\NativeRestoreManager':
+    alias: dbtng_migrator.restore.manager
+
+  'Drupal\dbtng_migrator\Import\ImportManager':
+    alias: dbtng_migrator.import.manager
+
+  'Drupal\dbtng_migrator\Contract\NativeRestoreManagerInterface':
+    alias: dbtng_migrator.restore.manager
+
+  'Drupal\dbtng_migrator\Contract\ImportManagerInterface':
+    alias: dbtng_migrator.import.manager
+
+  'Drupal\dbtng_migrator\Destination\DestinationPreparationManager':
+    alias: dbtng_migrator.destination.preparation
 
   'Drupal\dbtng_migrator\Source\Mysql\MysqlFamilySchemaIntrospector':
     alias: dbtng_migrator.schema.mysql

@@ -43,6 +43,9 @@ final class PortabilityAnalyzer implements PortabilityAnalyzerInterface {
         if ($column->generated) {
           $issues[] = new PortabilityIssue('generated_column', 'Generated columns require a proven target expression mapping.', 'error', $table->name, $column->name);
         }
+        if ($column->hidden) {
+          $issues[] = new PortabilityIssue('hidden_column', 'Hidden or virtual-table columns have no proven target mapping.', 'error', $table->name, $column->name);
+        }
         if ($column->unsigned) {
           $issues[] = new PortabilityIssue('unsigned_semantics', 'Unsigned range semantics need validation on the target engine.', 'warning', $table->name, $column->name);
         }

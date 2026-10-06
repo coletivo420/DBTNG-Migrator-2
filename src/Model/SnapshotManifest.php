@@ -21,6 +21,13 @@ final readonly class SnapshotManifest {
     public int $tableCount,
     public int $rowCount,
     public ?string $sha256 = NULL,
+    public int $bytesTransferred = 0,
+    public int $peakMemoryBytes = 0,
+    public int $portabilityWarnings = 0,
+    public ?string $safetyBackupPath = NULL,
+    public ?string $safetyBackupSha256 = NULL,
+    public string $previousDestinationState = 'empty',
+    public string $destinationPolicy = 'abort',
   ) {}
 
 }
