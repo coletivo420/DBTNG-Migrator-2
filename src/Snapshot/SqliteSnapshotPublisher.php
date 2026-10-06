@@ -37,6 +37,7 @@ final class SqliteSnapshotPublisher implements SnapshotPublisherInterface {
     $this->assertValidFile($candidatePath);
     $context->connection()->query('PRAGMA wal_checkpoint(TRUNCATE)');
     $context->releaseConnection();
+    $this->removeSidecars($candidatePath);
     $databaseFile = $partialDirectory . DIRECTORY_SEPARATOR . 'dbtng.sqlite';
     if (!rename($candidatePath, $databaseFile) || !chmod($databaseFile, 0600)) {
       throw new DbtngException('Unable to finalize the SQLite candidate artifact.');
@@ -125,7 +126,14 @@ final class SqliteSnapshotPublisher implements SnapshotPublisherInterface {
         $retainedOld++;
         continue;
       }
-      foreach (['dbtng.sqlite', 'dbtng.sqlite-wal', 'dbtng.sqlite-shm'] as $filename) {
+      $generationFiles = [
+        'dbtng.sqlite',
+        'dbtng.sqlite-wal',
+        'dbtng.sqlite-shm',
+        'dbtng.sqlite.partial-wal',
+        'dbtng.sqlite.partial-shm',
+      ];
+      foreach ($generationFiles as $filename) {
         $file = $entry['dir'] . DIRECTORY_SEPARATOR . $filename;
         if (is_link($file)) {
           throw new DbtngException('Refusing to apply SQLite generation retention to a linked file.');
@@ -134,7 +142,9 @@ final class SqliteSnapshotPublisher implements SnapshotPublisherInterface {
           throw new DbtngException('Unable to remove an expired SQLite standby generation.');
         }
       }
-      rmdir($entry['dir']);
+      if (!rmdir($entry['dir'])) {
+        throw new DbtngException('Unable to remove an expired SQLite generation directory.');
+      }
       $this->manifests->deleteVersion($context->manifestIdentity, $entry['id']);
     }
     if (!$activeFound) {
@@ -218,6 +228,18 @@ final class SqliteSnapshotPublisher implements SnapshotPublisherInterface {
     }
     finally {
       fclose($stream);
+    }
+  }
+
+  /**
+   * Removes only the two SQLite sidecars for the closed candidate handle.
+   */
+  private function removeSidecars(string $databasePath): void {
+    foreach (['-wal', '-shm'] as $suffix) {
+      $path = $databasePath . $suffix;
+      if (is_link($path) || (is_file($path) && !unlink($path))) {
+        throw new DbtngException('Unable to remove a closed SQLite candidate sidecar.');
+      }
     }
   }
 
