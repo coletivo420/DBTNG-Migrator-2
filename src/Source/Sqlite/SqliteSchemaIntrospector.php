@@ -74,7 +74,7 @@ final class SqliteSchemaIntrospector implements SourceSchemaIntrospectorInterfac
           $nativeType,
           $logicalType,
           (int) $columnRow['notnull'] === 0,
-          $columnRow['dflt_value'],
+          $this->normalizeDefault($connection, $columnRow['dflt_value']),
           FALSE,
           $length,
           $precision,
@@ -212,6 +212,23 @@ final class SqliteSchemaIntrospector implements SourceSchemaIntrospectorInterfac
       throw new \RuntimeException('The SQLite connection did not return a version result.');
     }
     return $statement->fetchField();
+  }
+
+  /**
+   * Converts a literal SQLite default expression to its stored value.
+   *
+   * SQLite exposes the SQL expression through PRAGMA, while MySQL-family
+   * builders need the semantic string value so it can quote it for the target
+   * connection's SQL mode. Only a single quoted literal is evaluated here;
+   * backend expressions remain visible to portability analysis.
+   */
+  private function normalizeDefault(Connection $connection, mixed $default): mixed {
+    if (!is_string($default)
+      || preg_match("/\\A'(?:''|[^'])*'\\z/D", $default) !== 1) {
+      return $default;
+    }
+    $statement = $connection->query('SELECT ' . $default);
+    return $statement?->fetchField();
   }
 
   private function sqliteAffinityType(string $type): string {

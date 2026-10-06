@@ -188,7 +188,7 @@ final class MysqlSchemaBuilder {
     }
     $default = $this->types->defaultValue($column);
     if ($default !== NULL) {
-      $sql .= ' DEFAULT ' . $this->literal($default);
+      $sql .= ' DEFAULT ' . $this->literal($destination, $default);
     }
     return $sql;
   }
@@ -219,14 +219,18 @@ final class MysqlSchemaBuilder {
     return implode(', ', array_map(static fn (string $name): string => SqlIdentifier::quote($connection, $name), $columns));
   }
 
-  private function literal(mixed $value): string {
+  private function literal(Connection $connection, mixed $value): string {
     if (is_int($value) || is_float($value) || (is_string($value) && preg_match('/^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/D', $value) === 1)) {
       return (string) $value;
     }
     if (!is_string($value)) {
       throw new PortabilityException('A column default cannot be represented as a MySQL literal.');
     }
-    return "'" . str_replace("'", "''", $value) . "'";
+    $quoted = $connection->quote($value);
+    if ($quoted === FALSE) {
+      throw new PortabilityException('A string column default could not be quoted safely for the MySQL-family target.');
+    }
+    return $quoted;
   }
 
   private function schemaOperationFailure(string $kind, string $name, \Throwable $exception): DbtngException {
