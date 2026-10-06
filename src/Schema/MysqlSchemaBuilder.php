@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\dbtng_migrator\Schema;
 
 use Drupal\Core\Database\Connection;
+use Drupal\dbtng_migrator\Exception\DbtngException;
 use Drupal\dbtng_migrator\Exception\PortabilityException;
 use Drupal\dbtng_migrator\Model\ColumnDefinition;
 use Drupal\dbtng_migrator\Model\DatabaseEngine;
@@ -36,7 +37,19 @@ final class MysqlSchemaBuilder {
       if ($definitions === []) {
         throw new PortabilityException(sprintf('Table "%s" has no importable columns.', $table->name));
       }
-      $destination->query('CREATE TABLE ' . SqlIdentifier::quote($destination, $table->name) . ' (' . implode(', ', $definitions) . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+      try {
+        $destination->query('CREATE TABLE ' . SqlIdentifier::quote($destination, $table->name) . ' (' . implode(', ', $definitions) . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+      }
+      catch (\Throwable $exception) {
+        $driverCode = $exception instanceof \PDOException && isset($exception->errorInfo[1])
+          ? (string) $exception->errorInfo[1]
+          : 'unknown';
+        throw new DbtngException(
+          sprintf('MySQL schema creation failed for table "%s" (driver code %s).', $table->name, $driverCode),
+          0,
+          $exception,
+        );
+      }
     }
   }
 

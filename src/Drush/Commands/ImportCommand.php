@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\dbtng_migrator\Drush\Commands;
 
 use Drupal\dbtng_migrator\Connection\DatabaseTopologyResolver;
+use Drupal\dbtng_migrator\Exception\DbtngException;
 use Drupal\dbtng_migrator\Exception\DestinationNotEmptyException;
 use Drupal\dbtng_migrator\Import\ImportManager;
 use Drupal\dbtng_migrator\Model\ImportRequest;
@@ -63,6 +64,9 @@ final class ImportCommand extends Command {
     }
     catch (\Throwable $exception) {
       $output->writeln('<error>Logical import failed; the standby was not marked initialized. Inspect the destination before retrying.</error>');
+      if ($exception instanceof DbtngException) {
+        $output->writeln('<comment>' . $exception->getMessage() . '</comment>');
+      }
       return Command::FAILURE;
     }
 
