@@ -179,15 +179,26 @@ final class SqliteSnapshotPublisher implements SnapshotPublisherInterface {
     $destination = new \SQLite3($archivePath, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE);
     $source->enableExceptions(TRUE);
     $destination->enableExceptions(TRUE);
+    $valid = FALSE;
     try {
       $source->createCollation('NOCASE_UTF8', Unicode::strcasecmp(...));
+      $destination->createCollation('NOCASE_UTF8', Unicode::strcasecmp(...));
       if (!$source->backup($destination) || $destination->querySingle('PRAGMA integrity_check') !== 'ok') {
         throw new DbtngException('Unable to preserve a valid snapshot of the previous SQLite standby.');
       }
+      $valid = TRUE;
     }
     finally {
       $destination->close();
       $source->close();
+      if (!$valid) {
+        if (is_file($archivePath) && !is_link($archivePath)) {
+          unlink($archivePath);
+        }
+        if (is_dir($archiveDirectory) && !is_link($archiveDirectory)) {
+          rmdir($archiveDirectory);
+        }
+      }
     }
     chmod($archivePath, 0600);
     chmod($archiveDirectory, 0700);
