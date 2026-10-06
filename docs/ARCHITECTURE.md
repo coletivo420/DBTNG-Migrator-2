@@ -80,7 +80,7 @@ Initial native formats:
 - MariaDB/MySQL: SQL dump, optionally gzip-compressed;
 - SQLite: consistent SQLite database snapshot, optionally gzip-compressed.
 
-Native restore is not implemented. When added, it must target only the matching standby engine. Native formats are never cross-engine migration formats.
+Native restore is implemented for the matching standby engine only. Native formats are never cross-engine migration formats.
 
 Backup/download/restore behavior is upstream-first. See [UPSTREAM_COMPONENTS.md](UPSTREAM_COMPONENTS.md) and [BACKUP_RESTORE.md](BACKUP_RESTORE.md).
 
@@ -140,7 +140,7 @@ Physical schema is discovered from the configured primary database. Drupal metad
 
 ## Destination initialization safety
 
-Import, native restore and rebuild are distinct operations. At the current phase, only topology resolution, inspection/preflight and native backup are operational.
+Import, native restore and rebuild are distinct operations. Phases B and C make topology resolution, inspection/preflight, native backup, standby preparation, native restore and logical import operational. Rebuild/reconciliation remains the next foundation.
 
 - Import: logical cross-engine movement. Empty destination proceeds; populated standby requires explicit `abort`, `backup_then_clear` or `clear`.
 - Native restore: same-engine artifact restore to standby with the same destination-preparation policies.
@@ -152,7 +152,7 @@ For SQLite backup/import/restore/rebuild, temporary database files provide natur
 
 SQLite Online Backup API snapshots register Drupal's NOCASE_UTF8 collation on their SQLite handles before running integrity validation. Drupal-created indexes may use this custom collation; a plain SQLite3 handle otherwise cannot validate them.
 
-For MariaDB/MySQL empty import, the destination adapter must track created state and define cleanup/retry semantics. Rebuild of an initialized MariaDB/MySQL standby requires a separate isolated candidate/promotion strategy.
+For MariaDB/MySQL import, the destination adapter tracks created state and validates cleanup/retry semantics. Rebuild of an initialized MariaDB/MySQL standby still requires a separate isolated candidate/promotion strategy.
 
 ## Replication profile safety
 
