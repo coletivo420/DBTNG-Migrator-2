@@ -51,13 +51,13 @@ MariaDB/MySQL -> SQLite
 SQLite        -> MariaDB/MySQL
 ```
 
-Logical import and destination preparation are not implemented yet. The planned behavior is to import into an empty standby, or require an explicit policy when it contains data:
+Logical import and destination preparation are implemented in Phase C. An empty standby can be initialized directly; when it already contains data, the operator must select an explicit policy:
 
 - `abort` — default, no mutation;
 - `backup_then_clear` — create and verify a native safety backup, clear the standby, then import;
 - `clear` — explicitly clear the standby without a safety backup.
 
-The implementation must never silently merge or overwrite an existing database, and must never clear the active primary. The destination will be considered initialized only after validation succeeds.
+The implementation never silently merges or overwrites an existing database and refuses to clear the active primary. A destination is considered initialized only after validation succeeds.
 
 See [docs/IMPORT.md](docs/IMPORT.md) and [docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md).
 
@@ -68,7 +68,7 @@ Phase B provides same-engine native database backups:
 - MariaDB/MySQL: `.sql` or `.sql.gz`;
 - SQLite: consistent `.sqlite` or `.sqlite.gz` snapshot.
 
-Backups may be created from either configured role through Drush and are written to private storage. Browser downloads and native restore are planned; cross-engine movement will use DBTNG's logical import engine when implemented.
+Backups may be created from either configured role through Drush and are written to private storage. Native restore to the matching standby engine is implemented; cross-engine movement uses DBTNG's logical import engine. Browser-download UI remains future work.
 
 The implementation is upstream-first and adapts proven behavior from Backup and Migrate, SQLite Backup, SQLite's native backup API and Drush SQL tooling instead of creating a second independent backup framework.
 
@@ -122,7 +122,7 @@ Reserved for a future, more aggressive SQLite standby projection that can exclud
 
 1. **Native backup** — creates a private same-engine backup for either configured role with checksum metadata.
 2. **Doctor and preflight** — resolve configured roles, inventory physical schemas, report destination state and strict portability findings.
-3. **Import/restore and destination preparation** — planned; not implemented yet.
+3. **Import/restore and destination preparation** — implemented in both supported engine directions with `abort`, `backup_then_clear`, and `clear` policies.
 4. **Snapshot/Rebuild** — reconstructs an initialized standby using an isolated candidate.
 5. **ChangeCapture** — records durable changes on the selected primary using an engine-specific adapter.
 6. **PolicyEngine** — decides how standby data is represented.
@@ -142,7 +142,7 @@ Codex is authorized to provision and maintain that development installation with
 
 ## Project status
 
-This repository is in the early operational foundation phase. Phase B implements configured primary/standby resolution, physical MariaDB/MySQL and SQLite inventories, destination-state inspection, conservative portability preflight, and same-engine native backups through Drush. The Phase B branch has passed local quality checks and live validation; GitHub CI/CodeQL and PR review remain before merge. **It does not yet import, restore, clear, continuously synchronize, or fail over. Do not deploy it as a production standby system.**
+Phases B and C are complete. DBTNG resolves primary/standby topology, inventories both engines, performs portability preflight, creates native backups, prepares populated standbys safely, restores same-engine backups, and performs validated logical imports in both directions. Continuous rebuild/reconciliation, CDC, continuous synchronization and production failover are not implemented yet. **Do not deploy it as a production standby system.**
 
 ## Requirements
 
@@ -156,9 +156,9 @@ This repository is in the early operational foundation phase. Phase B implements
 ## Roadmap
 
 1. Project skeleton, selectable topology contracts, documentation and CI. (complete)
-2. Runtime topology resolver, doctor/preflight, MariaDB/MySQL and SQLite physical inventory, destination state inspection, portability analysis, and same-engine native backups. (implemented and live-validated; CI/merge pending)
-3. Controlled standby clearing, native restore and logical import/bootstrap in both directions. (implemented and live-validated; CI/merge pending)
-4. Destination builders and consistent rebuilds for both directions.
+2. Runtime topology resolver, doctor/preflight, MariaDB/MySQL and SQLite physical inventory, destination state inspection, portability analysis, and same-engine native backups. (complete)
+3. Controlled standby clearing, native restore and logical import/bootstrap in both directions. (complete)
+4. Consistent standby rebuild and reconciliation foundation in both directions.
 5. Engine-specific durable change capture.
 6. Continuous synchronization and reconciliation.
 7. Optional SQLite-standby clean projection.
