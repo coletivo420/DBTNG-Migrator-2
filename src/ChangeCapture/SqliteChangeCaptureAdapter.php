@@ -120,7 +120,7 @@ final class SqliteChangeCaptureAdapter implements ChangeCaptureAdapterInterface 
     $parameters = [];
     $placeholders = [];
     foreach (array_values(array_unique($eventIds)) as $offset => $id) {
-      if (!is_int($id) || $id < 1) {
+      if ($id < 1) {
         throw new \InvalidArgumentException('Capture event IDs must be positive integers.');
       }
       $placeholder = ':event_' . $offset;

@@ -24,7 +24,7 @@ final class ChangeIdentityPlanner {
     }
     foreach ($table->primaryKey as $name) {
       $column = $columns[$name] ?? NULL;
-      if ($column === NULL || !in_array($column->logicalType, ['integer', 'varchar', 'text'], TRUE)) {
+      if ($column === NULL || !in_array($column->portableType, ['integer', 'varchar', 'text'], TRUE)) {
         return new CaptureIdentityDefinition(ChangeIdentityKind::Table);
       }
     }
