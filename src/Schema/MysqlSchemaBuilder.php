@@ -41,9 +41,13 @@ final class MysqlSchemaBuilder {
         $destination->query('CREATE TABLE ' . SqlIdentifier::quote($destination, $table->name) . ' (' . implode(', ', $definitions) . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
       }
       catch (\Throwable $exception) {
-        $driverCode = $exception instanceof \PDOException && isset($exception->errorInfo[1])
-          ? (string) $exception->errorInfo[1]
-          : 'unknown';
+        $driverCode = 'unknown';
+        for ($cause = $exception; $cause !== NULL; $cause = $cause->getPrevious()) {
+          if ($cause instanceof \PDOException && isset($cause->errorInfo[1])) {
+            $driverCode = (string) $cause->errorInfo[1];
+            break;
+          }
+        }
         throw new DbtngException(
           sprintf('MySQL schema creation failed for table "%s" (driver code %s).', $table->name, $driverCode),
           0,
