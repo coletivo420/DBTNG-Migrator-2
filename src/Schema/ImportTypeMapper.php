@@ -12,6 +12,21 @@ use Drupal\dbtng_migrator\Model\DatabaseEngine;
  * Explicit target types for the initial cross-engine logical import pair. */
 final class ImportTypeMapper {
 
+  /**
+   * Normalizes backend representations of a nullable SQL NULL default.
+   *
+   * MariaDB exposes NULL defaults as the string "NULL" through the driver,
+   * while SQLite PRAGMA reports the SQL literal with its surrounding quotes.
+   * For scalar types, both forms mean a NULL default rather than text data.
+   */
+  public function defaultValue(ColumnDefinition $column): mixed {
+    if (!$column->nullable || !is_string($column->default)
+      || !in_array($column->portableType, ['integer', 'float', 'numeric', 'date', 'datetime', 'timestamp', 'time'], TRUE)) {
+      return $column->default;
+    }
+    return in_array(strtoupper(trim($column->default, " '\"")), ['NULL'], TRUE) ? NULL : $column->default;
+  }
+
   public function type(ColumnDefinition $column, DatabaseEngine $target): string {
     if ($column->generated || $column->hidden || $column->portableType === 'unknown') {
       throw new PortabilityException(sprintf('Column "%s" has physical semantics that are not supported for logical import.', $column->name));

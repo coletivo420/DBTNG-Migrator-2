@@ -95,8 +95,9 @@ final class MysqlSchemaBuilder {
     if ($column->autoIncrement || $autoIncrementFromTable) {
       $sql .= ' AUTO_INCREMENT';
     }
-    if ($column->default !== NULL) {
-      $sql .= ' DEFAULT ' . $this->literal($column->default);
+    $default = $this->types->defaultValue($column);
+    if ($default !== NULL) {
+      $sql .= ' DEFAULT ' . $this->literal($default);
     }
     return $sql;
   }

@@ -32,4 +32,11 @@ final class ImportTypeMapperTest extends TestCase {
     (new ImportTypeMapper())->type(new ColumnDefinition('amount', 'numeric(30,2)', 'numeric', TRUE, NULL, FALSE, NULL, 30, 2), DatabaseEngine::Sqlite);
   }
 
+  public function testNullableScalarNullDefaultsAreNormalizedButTextIsPreserved(): void {
+    $mapper = new ImportTypeMapper();
+    self::assertNull($mapper->defaultValue(new ColumnDefinition('id', 'int', 'integer', TRUE, 'NULL')));
+    self::assertNull($mapper->defaultValue(new ColumnDefinition('id', 'INTEGER', 'integer', TRUE, "'NULL'")));
+    self::assertSame('NULL', $mapper->defaultValue(new ColumnDefinition('label', 'varchar(8)', 'varchar', TRUE, 'NULL')));
+  }
+
 }

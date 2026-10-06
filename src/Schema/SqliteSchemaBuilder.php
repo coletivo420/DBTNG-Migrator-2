@@ -92,8 +92,9 @@ final class SqliteSchemaBuilder {
     if (!$column->nullable || $column->name !== '' && $column->generated) {
       $sql .= ' NOT NULL';
     }
-    if ($column->default !== NULL) {
-      $sql .= ' DEFAULT ' . $this->literal($column->default);
+    $default = $this->types->defaultValue($column);
+    if ($default !== NULL) {
+      $sql .= ' DEFAULT ' . $this->literal($default);
     }
     return $sql;
   }
