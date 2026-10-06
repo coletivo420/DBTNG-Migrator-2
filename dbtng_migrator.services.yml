@@ -24,6 +24,9 @@ services:
       - '@dbtng_migrator.schema.mysql'
       - '@dbtng_migrator.schema.sqlite'
 
+  dbtng_migrator.schema.mysql_integrity:
+    class: Drupal\dbtng_migrator\Schema\MysqlIntegrityChecker
+
   dbtng_migrator.destination.mysql:
     class: Drupal\dbtng_migrator\Destination\Mysql\MysqlDestinationStateInspector
 
@@ -98,6 +101,7 @@ services:
       - '@dbtng_migrator.restore.mysql'
       - '@dbtng_migrator.restore.sqlite'
       - '@dbtng_migrator.manifest_store'
+      - '@dbtng_migrator.schema.mysql_integrity'
 
   dbtng_migrator.manifest_store:
     class: Drupal\dbtng_migrator\Manifest\StandbyManifestStore
@@ -138,6 +142,7 @@ services:
       - '@Drupal\dbtng_migrator\Policy\CleanReplicationPolicy'
       - '@config.factory'
       - '@dbtng_migrator.manifest_store'
+      - '@dbtng_migrator.schema.mysql_integrity'
 
   'Drupal\dbtng_migrator\Connection\DatabaseTopologyResolver':
     alias: dbtng_migrator.topology_resolver

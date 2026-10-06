@@ -25,6 +25,7 @@ use Drupal\dbtng_migrator\Model\SnapshotManifest;
 use Drupal\dbtng_migrator\Policy\CleanReplicationPolicy;
 use Drupal\dbtng_migrator\Manifest\StandbyManifestStore;
 use Drupal\dbtng_migrator\Schema\MysqlSchemaBuilder;
+use Drupal\dbtng_migrator\Schema\MysqlIntegrityChecker;
 use Drupal\dbtng_migrator\Schema\PortabilityAnalyzer;
 use Drupal\dbtng_migrator\Schema\SchemaIntrospectionManager;
 use Drupal\dbtng_migrator\Schema\SqlIdentifier;
@@ -48,6 +49,7 @@ final class ImportManager implements ImportManagerInterface {
     private readonly CleanReplicationPolicy $cleanPolicy,
     private readonly ConfigFactoryInterface $configFactory,
     private readonly StandbyManifestStore $manifestStore,
+    private readonly MysqlIntegrityChecker $mysqlIntegrityChecker,
   ) {}
 
   public function import(ImportRequest $request): SnapshotManifest {
@@ -130,7 +132,7 @@ final class ImportManager implements ImportManagerInterface {
       }
       $this->validateSchema($candidate, $inventory);
       $this->validateRows($candidate, $inventory, $expectedRows);
-      $this->validateEngineIntegrity($candidate);
+      $this->validateEngineIntegrity($candidate, $inventory);
 
       $tableCount = count($inventory->tables);
       $rowCount = array_sum($expectedRows);
@@ -370,7 +372,7 @@ final class ImportManager implements ImportManagerInterface {
     }
   }
 
-  private function validateEngineIntegrity(Connection $destination): void {
+  private function validateEngineIntegrity(Connection $destination, DatabaseInventory $inventory): void {
     if (strtolower($destination->driver()) === 'sqlite') {
       $statement = $destination->query('PRAGMA integrity_check');
       if (!$statement instanceof StatementInterface) {
@@ -384,6 +386,9 @@ final class ImportManager implements ImportManagerInterface {
       if ($statement instanceof StatementInterface && $statement->fetch(FetchAs::Associative) !== FALSE) {
         throw new DbtngException('SQLite import failed PRAGMA foreign_key_check.');
       }
+    }
+    else {
+      $this->mysqlIntegrityChecker->validate($destination, $inventory);
     }
   }
 

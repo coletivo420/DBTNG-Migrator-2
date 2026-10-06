@@ -9,6 +9,7 @@ use Drupal\dbtng_migrator\Contract\NativeRestoreManagerInterface;
 use Drupal\dbtng_migrator\Destination\DestinationPreparationManager;
 use Drupal\dbtng_migrator\Destination\DestinationStateInspectionManager;
 use Drupal\dbtng_migrator\Schema\SchemaIntrospectionManager;
+use Drupal\dbtng_migrator\Schema\MysqlIntegrityChecker;
 use Drupal\dbtng_migrator\Exception\DbtngException;
 use Drupal\dbtng_migrator\Model\DatabaseEngine;
 use Drupal\dbtng_migrator\Model\DatabaseTopology;
@@ -29,6 +30,7 @@ final class NativeRestoreManager implements NativeRestoreManagerInterface {
     private readonly MysqlNativeRestoreAdapter $mysql,
     private readonly SqliteNativeRestoreAdapter $sqlite,
     private readonly StandbyManifestStore $manifestStore,
+    private readonly MysqlIntegrityChecker $mysqlIntegrityChecker,
   ) {}
 
   public function restore(DatabaseTopology $topology, NativeRestoreRequest $request): NativeRestoreResult {
@@ -58,6 +60,9 @@ final class NativeRestoreManager implements NativeRestoreManagerInterface {
       throw new DbtngException('Native restore did not produce a non-empty validated standby.');
     }
     $inventory = $this->schemaIntrospector->inspect($after->standby->connection);
+    if ($after->standby->engine === DatabaseEngine::MysqlFamily) {
+      $this->mysqlIntegrityChecker->validate($after->standby->connection, $inventory);
+    }
     $tables = array_map(static fn ($table): string => strtolower($table->name), $inventory->tables);
     foreach (['config', 'key_value', 'users_field_data'] as $requiredTail) {
       if (!array_filter($tables, static fn (string $table): bool => $table === $requiredTail || str_ends_with($table, '_' . $requiredTail))) {
@@ -84,7 +89,7 @@ final class NativeRestoreManager implements NativeRestoreManagerInterface {
       'previous_destination_state' => $preparation->previousState->value,
       'validation' => [
         'schema' => 'pass',
-        'integrity' => $after->standby->engine === DatabaseEngine::Sqlite ? 'pass' : 'not_available',
+        'integrity' => 'pass',
       ],
     ]);
     return new NativeRestoreResult($after->standby->engine, $request->format, $preparation, $manifestPath);
