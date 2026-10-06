@@ -158,7 +158,7 @@ The development environment must be able to switch between the two role assignme
 
 The canonical host `dbtng.toca.net.br` was exercised on Drupal 11.4.8, PHP 8.4.26, Drush 13.8.0, MariaDB 11.8.6 and SQLite 3.46.1. Both full import directions and the MariaDB -> SQLite clean profile passed with schema/row validation; SQLite integrity and foreign-key checks passed. Drupal status, requirements, cache rebuild, HTTP 200 and representative entity CRUD passed after promoting each full-import destination in turn. Native restore, safety-backup preparation, explicit clear, abort, wrong-engine/corrupt-gzip rejection and primary-clear refusal were also exercised.
 
-A 1,200-row unknown-table fixture crossed multiple batches. The observed peak PHP memory was 30 MiB for the tested live imports; this is a test observation, not a general memory ceiling. The initial MariaDB -> SQLite run reported 343 portability warnings, which remain documented rather than suppressed. PHPUnit currently has 61 tests and 190 assertions; its existing deprecation notices are recorded during quality runs.
+A 1,200-row unknown-table fixture crossed multiple batches. The observed peak PHP memory was 30 MiB for the tested live imports; this is a test observation, not a general memory ceiling. The initial MariaDB -> SQLite run reported 343 portability warnings, which remain documented rather than suppressed. Phase C recorded 61 tests and 190 assertions at that revision; the current suite has 64 tests and 198 assertions, with 17 PHPUnit deprecations.
 
 ## Production-readiness gate
 
@@ -174,3 +174,14 @@ Do not call the project production-ready until both directions have:
 - crash-safe destination initialization/publication;
 - reconciliation;
 - application-level Drupal smoke tests.
+# Phase D rebuild and reconciliation tests
+
+`dbtng:reconcile` must be tested for schema drift, missing/extra tables, row-count drift, equal-count content drift, manifest mismatch, engine integrity and clean-profile exclusions. It is strictly read-only.
+
+`dbtng:rebuild` tests must inject failures after candidate creation, during transfer, before/after validation and immediately before each engine's atomic publication operation. For every pre-publication failure, verify the old standby remains usable and its manifest remains current. Test both role directions and clean MariaDB/MySQL -> SQLite; never promote a clean candidate as full.
+
+## Phase D live development-host evidence
+
+On `dbtng.toca.net.br` (Drupal 11.4.8, PHP 8.4.26, Drush 13.8.0, MariaDB 11.8.6, SQLite 3.46.1), rebuilds passed in both FULL directions and in MariaDB -> SQLite CLEAN. Each transfer used 21 batches for FULL and 13 for CLEAN, with a measured PHP peak of 30 MiB. Final CLEAN reconciliation returned `MATCH`; SQLite integrity and manifest checks passed. Drupal status, requirements, cache rebuild, CRUD and HTTP 200 were verified while each FULL engine was selected as primary.
+
+Test-only injected exceptions were exercised at all available lifecycle points for SQLite publication and at candidate creation, mid-transfer, after validation, before publication and immediately before MariaDB's atomic rename. Each attempt retained the prior published pointer or the 57 canonical MariaDB application tables. These tests exercise handled process failures; an operating-system kill or host power-loss drill remains a separate durability test. PHPUnit currently reports 17 upstream deprecations.

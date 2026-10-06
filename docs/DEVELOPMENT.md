@@ -57,3 +57,6 @@ The path repository should symlink the module into the Drupal installation durin
 If a code change alters behavior, guarantees, compatibility, topology, clean-profile policy, schema mapping, failover, recovery or development provisioning, update the relevant documentation/ADR in the same commit.
 
 Use only `dbtng.toca.net.br` as the canonical Virtualmin integration hostname. Avoid `virtualmin list-domains --multiline` because it may expose database credentials; use narrowly scoped administrative commands and sanitize output.
+# Phase D local workflow
+
+Use `drush dbtng:reconcile` for a read-only status report and `drush dbtng:rebuild --profile=full|clean` to construct and publish a validated standby candidate. Both share the operation lock with import and restore. Rebuild runs for most of its duration while the primary accepts writes, then uses a short final write fence. It can abort if the final schema or streamed row-content digest differs from the candidate.

@@ -18,10 +18,18 @@ final class SchemaIntrospectionManager {
     private readonly SqliteSchemaIntrospector $sqlite,
   ) {}
 
-  public function inspect(Connection $connection): DatabaseInventory {
+  /**
+   * Introspects the physical schema for a configured Drupal connection.
+   *
+   * @param list<string>|null $onlyTables
+   *   Optional exact table names to include.
+   */
+  public function inspect(Connection $connection, ?array $onlyTables = NULL): DatabaseInventory {
     foreach ([$this->mysql, $this->sqlite] as $introspector) {
       if ($introspector->supports($connection)) {
-        return $introspector->inspect($connection);
+        return $introspector instanceof MysqlFamilySchemaIntrospector
+          ? $introspector->inspect($connection, $onlyTables)
+          : $introspector->inspect($connection);
       }
     }
     throw new \InvalidArgumentException(sprintf('No physical schema introspector supports driver "%s".', $connection->driver()));

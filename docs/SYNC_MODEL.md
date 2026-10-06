@@ -55,3 +55,6 @@ Continuous application is complemented by periodic full rebuild/reconciliation t
 ## Authority transition
 
 Failover changes roles operationally; it is not equivalent to changing a config value while both databases keep accepting writes. Fencing and controlled deployment changes are mandatory.
+# Pre-CDC rebuild boundary
+
+Snapshot/rebuild and read-only reconciliation exist before durable change capture. A source snapshot may become stale during its build; the final brief write fence and streamed content comparison either prove parity at publication or reject the candidate. After releasing that fence, new primary writes can create drift. No zero-lag or continuous synchronization claim is made until CDC and catch-up are implemented.

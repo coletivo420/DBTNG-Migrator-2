@@ -13,7 +13,7 @@ Do not parse a MySQL SQL dump as if it were a portable SQLite migration format. 
 
 `drush dbtng:backup --role=primary|standby` writes to a private local directory, optionally gzip-compresses, and reports role, engine, format, size and SHA-256. The default destination is `<file_private_path>/dbtng/backups`; an explicit `--output` must be absolute, outside the webroot, writable and owner-private. Credentials are not placed in the native client argument vector. The MariaDB/MySQL adapter uses a mode-0600 temporary defaults file and deletes it after the process. SQLite uses PHP `SQLite3::backup()` and verifies `PRAGMA integrity_check` before finalizing the artifact.
 
-This is an operator CLI artifact, not a browser download endpoint. Native restore, clear and backup-then-clear are not implemented in Phase B.
+This is an operator CLI artifact, not a browser download endpoint. Native restore, clear and backup-then-clear are available through the CLI.
 
 The SQLite snapshot adapter registers Drupal's NOCASE_UTF8 collation before backup validation. Drupal schemas can contain indexes that use this collation; a plain SQLite3 connection reports an error when checking those indexes unless the collation is registered.
 
@@ -209,3 +209,6 @@ When the destination is non-empty, `abort` is the default. `backup_then_clear` f
 After native restore, DBTNG re-introspects and validates the restored database. MySQL-family validation includes `CHECK TABLE`; SQLite validation runs `integrity_check` and foreign-key checks where applicable. Validated imports and restores write a private versioned standby manifest only after completion. The manifest records validation and topology metadata, never credentials.
 
 The development integration test exercised MySQL and SQLite restore, gzip validation, wrong-engine rejection, both safety-backup flows, clear, abort, and primary-clear refusal. Corrupt input and a simulated safety-backup failure were verified to leave destination data unchanged.
+# Rebuild and retained generations
+
+Rebuild is separate from destructive clear/import. SQLite publishes an immutable generation by atomic symlink replacement; MySQL-family publishes with one atomic multi-table rename into/out of reserved stage/archive namespaces. The old generation remains available for rollback. Manifests contain no credentials. A native backup remains useful as an independent recovery artifact and is not the rebuild candidate itself.

@@ -37,6 +37,8 @@ This file is normative guidance for humans and AI coding agents. Architectural c
 31. **Database downloads and uploads are private sensitive artifacts.** Never stage them under public webroot or trust client-provided filenames/MIME types.
 32. **SQLite snapshot validation must register Drupal's `NOCASE_UTF8` collation.** Drupal indexes can depend on it; plain SQLite3 integrity checks otherwise fail on valid site databases.
 33. **Drush commands that inject Drupal services must declare the appropriate Drush bootstrap level.** Use the current Symfony `AsCommand` and `AutowireTrait` form supported by Drush 13.7+ and validate command discovery in the actual Composer installation layout.
+34. **Schema defaults are semantic values, not portable SQL fragments.** Introspect and decode only safe literal defaults, leave backend expressions for portability analysis, and quote string defaults with the destination driver's quoting rules.
+35. **Reserved candidate namespaces are part of rebuild safety.** Normal inventories hide DBTNG staging/archive objects, while explicit candidate validation must include the exact staged table set. SQLite candidate WAL/SHM sidecars must be closed and cleaned before publication.
 
 ## Current product boundary
 
@@ -45,7 +47,7 @@ Initial topologies:
 - MariaDB/MySQL primary -> SQLite standby (`full` or opt-in `clean`).
 - SQLite primary -> MariaDB/MySQL standby (`full`).
 
-Both directions are logical-import requirements, but logical import and destination preparation are not implemented yet. Phase B provides read-only topology/inspection commands and private same-engine CLI backups for either role. Browser download, restore and clear are future work.
+Both directions are implemented as logical import requirements. Phase C provides native restore and destination preparation, and the Phase D branch adds candidate-based rebuild/reconciliation. Browser download remains future work.
 
 PostgreSQL and other engines are future adapters.
 
@@ -108,9 +110,9 @@ Before mutating the server, follow [docs/DEVELOPMENT_ENVIRONMENT.md](docs/DEVELO
 4. install Drupal as the domain user through Composer;
 5. link this module through a Composer path repository;
 6. configure both database engines;
-7. exercise implemented native CLI backups for both engines; test downloads/restores only after their phase is implemented;
-8. exercise logical import in both directions only after its phase is implemented;
-9. exercise `abort`, `backup_then_clear` and `clear` destination policies only after destination preparation is implemented;
+7. exercise implemented native CLI backup and restore for both engines;
+8. exercise logical import and candidate rebuild in both directions;
+9. exercise read-only reconciliation and all non-empty destination policies;
 10. exercise both primary topologies;
 11. record test evidence in the PR/commit notes.
 
@@ -134,3 +136,13 @@ Do not claim production readiness until the beta/stable criteria in `docs/TESTIN
 - Before destructive work, prove the target is the configured standby and physically distinct from primary. Never clear the primary.
 - Logical imports must stream bounded batches, validate schema/data/integrity, and publish initialized state only after all checks pass.
 - Preserve the distinction between physical portability warnings and strict blockers; do not suppress warnings just to lower counts.
+
+## Phase D rebuild checks
+
+- Rebuild must use an isolated engine-specific candidate and leave the last published standby available until atomic publication.
+- Serialize import, restore, and rebuild with the same private `flock` lock; never remove a lock based on file age.
+- Before publication without CDC, fence writes briefly and compare source schema plus streamed row-content fingerprints; equal row counts alone are insufficient evidence of parity.
+- `dbtng:reconcile` is read-only and compares content as well as schema, indexes, profile projection, integrity and the published manifest.
+- MySQL-family staging names `dbtngc<8-hex>_`, retained names `dbtngp<8-hex>_`, and `dbtng_migrator_snapshot_state` are reserved for DBTNG; reject collisions and do not treat them as Drupal application tables.
+- A clean SQLite standby is standby-only and must never be reported as full-equivalent or promoted as such.
+- Failure injection is supplied through an injected test service; production uses `NullFailureInjector`. Do not add ad-hoc environment-variable failpoints.

@@ -49,3 +49,6 @@ Lag is explicit operational state. Standby failure does not invalidate the prima
 The current primary engine is selected by deployment database configuration before Drupal Config API loads. Sync/rebuild services consume the resolved role model; they must not attempt to switch the running request's global connection.
 
 Phase C import pins a dedicated source connection for the duration of a stable read view. MariaDB/MySQL uses repeatable-read consistent snapshot semantics and SQLite a read transaction, including WAL mode. Destination rows are written in bounded batches. The result is not considered initialized until the physical schema, row counts and engine integrity checks pass and the private manifest is atomically written.
+# Rebuild consistency before CDC
+
+Rebuild uses an engine-native consistent read snapshot and bounded row transfer. Before publication, DBTNG takes a short source write fence and compares the candidate schema and streamed row-content digests against the source. Equal row counts are not sufficient. The fence is held only for final comparison and atomic publication, not for the full build. It proves parity at publication time; it does not prevent later drift after the fence is released. See ADR-021.

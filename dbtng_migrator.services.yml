@@ -1,4 +1,59 @@
 services:
+  dbtng_migrator.operation_lock:
+    class: Drupal\dbtng_migrator\Operation\OperationLock
+
+  dbtng_migrator.failure_injector:
+    class: Drupal\dbtng_migrator\Failure\NullFailureInjector
+
+  dbtng_migrator.snapshot.candidate_factory:
+    class: Drupal\dbtng_migrator\Snapshot\CandidateFactory
+    arguments:
+      - '@dbtng_migrator.manifest_store'
+
+  dbtng_migrator.snapshot.publisher.sqlite:
+    class: Drupal\dbtng_migrator\Snapshot\SqliteSnapshotPublisher
+    arguments:
+      - '@dbtng_migrator.manifest_store'
+      - '@dbtng_migrator.failure_injector'
+      - '@config.factory'
+      - '@logger.factory'
+
+  dbtng_migrator.snapshot.publisher.mysql:
+    class: Drupal\dbtng_migrator\Snapshot\MysqlSnapshotPublisher
+    arguments:
+      - '@dbtng_migrator.manifest_store'
+      - '@dbtng_migrator.failure_injector'
+      - '@config.factory'
+      - '@logger.factory'
+
+  dbtng_migrator.snapshot.manager:
+    class: Drupal\dbtng_migrator\Snapshot\SnapshotManager
+    arguments:
+      - '@dbtng_migrator.topology_resolver'
+      - '@dbtng_migrator.schema.manager'
+      - '@dbtng_migrator.snapshot.builder'
+      - '@dbtng_migrator.snapshot.candidate_factory'
+      - '@dbtng_migrator.snapshot.publisher.sqlite'
+      - '@dbtng_migrator.snapshot.publisher.mysql'
+      - '@dbtng_migrator.manifest_store'
+      - '@dbtng_migrator.operation_lock'
+      - '@dbtng_migrator.failure_injector'
+      - '@dbtng_migrator.schema.fingerprint'
+      - '@Drupal\dbtng_migrator\Policy\CleanReplicationPolicy'
+      - '@dbtng_migrator.reconciliation.content_fingerprint'
+
+  dbtng_migrator.reconciliation.engine:
+    class: Drupal\dbtng_migrator\Reconciliation\ReconciliationEngine
+    arguments:
+      - '@dbtng_migrator.topology_resolver'
+      - '@dbtng_migrator.schema.manager'
+      - '@dbtng_migrator.manifest_store'
+      - '@dbtng_migrator.schema.fingerprint'
+      - '@Drupal\dbtng_migrator\Policy\CleanReplicationPolicy'
+      - '@dbtng_migrator.schema.mysql_integrity'
+      - '@dbtng_migrator.reconciliation.content_fingerprint'
+      - '@dbtng_migrator.operation_lock'
+
   dbtng_migrator.connection_factory:
     class: Drupal\dbtng_migrator\Connection\DrupalDatabaseConnectionFactory
 
@@ -26,6 +81,12 @@ services:
 
   dbtng_migrator.schema.mysql_integrity:
     class: Drupal\dbtng_migrator\Schema\MysqlIntegrityChecker
+
+  dbtng_migrator.schema.fingerprint:
+    class: Drupal\dbtng_migrator\Schema\SchemaFingerprint
+
+  dbtng_migrator.reconciliation.content_fingerprint:
+    class: Drupal\dbtng_migrator\Reconciliation\TableContentFingerprint
 
   dbtng_migrator.destination.mysql:
     class: Drupal\dbtng_migrator\Destination\Mysql\MysqlDestinationStateInspector
@@ -102,6 +163,7 @@ services:
       - '@dbtng_migrator.restore.sqlite'
       - '@dbtng_migrator.manifest_store'
       - '@dbtng_migrator.schema.mysql_integrity'
+      - '@dbtng_migrator.operation_lock'
 
   dbtng_migrator.manifest_store:
     class: Drupal\dbtng_migrator\Manifest\StandbyManifestStore
@@ -126,6 +188,22 @@ services:
     class: Drupal\dbtng_migrator\Import\RowTransfer
     arguments:
       - '@Drupal\dbtng_migrator\Policy\CleanReplicationPolicy'
+      - '@dbtng_migrator.failure_injector'
+
+  dbtng_migrator.snapshot.builder:
+    class: Drupal\dbtng_migrator\Import\LogicalSnapshotBuilder
+    arguments:
+      - '@dbtng_migrator.schema.manager'
+      - '@dbtng_migrator.portability_analyzer'
+      - '@dbtng_migrator.import.portability_gate'
+      - '@dbtng_migrator.import.schema.mysql'
+      - '@dbtng_migrator.import.schema.sqlite'
+      - '@dbtng_migrator.import.row_transfer'
+      - '@Drupal\dbtng_migrator\Policy\CleanReplicationPolicy'
+      - '@config.factory'
+      - '@dbtng_migrator.schema.mysql_integrity'
+      - '@dbtng_migrator.schema.fingerprint'
+      - '@dbtng_migrator.failure_injector'
 
   dbtng_migrator.import.manager:
     class: Drupal\dbtng_migrator\Import\ImportManager
@@ -133,16 +211,10 @@ services:
       - '@dbtng_migrator.topology_resolver'
       - '@dbtng_migrator.schema.manager'
       - '@dbtng_migrator.destination.manager'
-      - '@dbtng_migrator.portability_analyzer'
-      - '@dbtng_migrator.import.portability_gate'
       - '@dbtng_migrator.destination.preparation'
-      - '@dbtng_migrator.import.schema.mysql'
-      - '@dbtng_migrator.import.schema.sqlite'
-      - '@dbtng_migrator.import.row_transfer'
-      - '@Drupal\dbtng_migrator\Policy\CleanReplicationPolicy'
-      - '@config.factory'
       - '@dbtng_migrator.manifest_store'
-      - '@dbtng_migrator.schema.mysql_integrity'
+      - '@dbtng_migrator.snapshot.builder'
+      - '@dbtng_migrator.operation_lock'
 
   'Drupal\dbtng_migrator\Connection\DatabaseTopologyResolver':
     alias: dbtng_migrator.topology_resolver
@@ -167,6 +239,15 @@ services:
 
   'Drupal\dbtng_migrator\Contract\ImportManagerInterface':
     alias: dbtng_migrator.import.manager
+
+  'Drupal\dbtng_migrator\Contract\RebuildManagerInterface':
+    alias: dbtng_migrator.snapshot.manager
+
+  'Drupal\dbtng_migrator\Contract\SnapshotManagerInterface':
+    alias: dbtng_migrator.snapshot.manager
+
+  'Drupal\dbtng_migrator\Contract\ReconciliationEngineInterface':
+    alias: dbtng_migrator.reconciliation.engine
 
   'Drupal\dbtng_migrator\Destination\DestinationPreparationManager':
     alias: dbtng_migrator.destination.preparation

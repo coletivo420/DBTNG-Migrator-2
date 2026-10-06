@@ -19,7 +19,7 @@ Operators must be able to observe:
 
 A configured standby starts uninitialized.
 
-The planned operation:
+The import operation:
 
 ```bash
 drush dbtng:import
@@ -36,7 +36,7 @@ A non-empty destination defaults to `abort`. Operators may explicitly choose `ba
 
 After successful validation, the destination can be marked initialized and continuous sync may begin from the corresponding source change position.
 
-## Native backup (Phase B)
+## Native backup and rebuild
 
 Available backup commands:
 
@@ -45,13 +45,13 @@ drush dbtng:backup --role=primary
 drush dbtng:backup --role=standby
 ```
 
-`dbtng:doctor` reports resolved roles, engines, versions and tool availability without printing credentials. `dbtng:preflight` performs read-only connection checks, physical inventories, destination-state inspection and strict portability analysis. `dbtng:backup` is read-only and may target either role. It stores output below Drupal's configured private path by default.
+`dbtng:doctor` reports resolved roles, engines, versions and tool availability without printing credentials. `dbtng:preflight` performs read-only connection checks, physical inventories, destination-state inspection and strict portability analysis for an initial import; a populated standby is expected to be BLOCKED there. `dbtng:backup` is read-only and may target either role. It stores output below Drupal's configured private path by default.
 
-The 2026-10-06 live test on `dbtng.toca.net.br` created MariaDB and SQLite backups in both role assignments. The preflight correctly returned BLOCKED in both directions because the target database is a separate Drupal install (56 tables), not an empty or synchronized standby. SQLite snapshots passed an integrity check with Drupal's custom collation registered, including a live WAL write test. The current site selector was restored to MariaDB primary.
+The 2026-10-06 Phase B live test on `dbtng.toca.net.br` created MariaDB and SQLite backups in both role assignments. Preflight returned BLOCKED because the target was a separate populated Drupal install, not an empty initial-import destination. SQLite snapshots passed an integrity check with Drupal's custom collation registered, including a live WAL write test. Phase D later rebuilt and reconciled isolated candidates in both directions.
 
-Restore targets the configured standby and accepts only its engine's native backup format. This command is planned but not implemented. Use logical `dbtng:import` for cross-engine transfer once available.
+Restore targets the configured standby and accepts only its engine's native backup format. Use logical `dbtng:import` for cross-engine transfer.
 
-Destination preparation and `abort | backup_then_clear | clear` policies are not operational yet; no clearing or restore command is available.
+`dbtng:rebuild --profile=full|clean` constructs an isolated candidate and leaves the currently published standby untouched until validation, reconciliation and the final write fence pass. `dbtng:reconcile` is read-only. A `clean` result is standby-only and must not be promoted as a full copy. The pre-CDC write fence is brief but can grow with the final streamed content comparison; publication proves parity at the fence, not ongoing zero lag.
 
 ## Topology source
 
@@ -61,7 +61,7 @@ Changing the primary is an operational authority transition, not a normal Config
 
 ## Schema deployments
 
-Schema-changing deployments (`composer` updates, module install/uninstall and `drush updb`) must be coordinated with standby reconciliation. The exact locking/rebuild policy will be implemented before beta.
+Schema-changing deployments (`composer` updates, module install/uninstall and `drush updb`) must be coordinated with standby reconciliation. DBTNG serializes its own import, restore, rebuild and reconciliation operations with a private `flock`; deployment tooling must still avoid concurrent Drupal schema changes during the final rebuild fence.
 
 ## Development vs production
 

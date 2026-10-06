@@ -319,3 +319,11 @@ Use installed command help as the final authority because Virtualmin versions ca
 The real integration site is `dbtng.toca.net.br` only. Phase C exercised both full logical-import directions, the SQLite standby clean projection, native restore for each engine, non-empty policies and primary protection. The application is left with MariaDB primary and SQLite standby. A retained 1,200-row development fixture table was used to cross batch boundaries and verify unknown-table preservation. The first MariaDB -> SQLite physical portability analysis reported 343 warnings; those are retained as diagnostic evidence.
 
 Never run `virtualmin list-domains --multiline` in normal diagnosis or automation; it can print database passwords. Do not reveal credentials in terminal output, logs, reports, CI or chat. The dedicated site's credential was rotated before Phase C and remains only in its private settings file.
+# Phase D integration safety
+
+The only canonical host is `dbtng.toca.net.br`. The environment ends with MariaDB primary and SQLite standby. Its existing SQLite data may be a `clean` profile; never treat it as full-equivalent or promote it as a full standby. For Phase D full-promotion tests, run an explicit full rebuild and verify the published manifest before changing deployment settings. Do not run `virtualmin list-domains --multiline`; it can disclose database credentials. Keep all credential-bearing site files private and never include secrets in terminal logs or test reports.
+# Phase D validation state
+
+The canonical development host is `dbtng.toca.net.br`. The expected final role selection is MariaDB primary and SQLite standby. A CLEAN SQLite standby is intentionally not full-equivalent and must not be promoted as though it were FULL. The development validation for Phase D passed MariaDB -> SQLite FULL, SQLite -> MariaDB FULL and MariaDB -> SQLite CLEAN rebuilds; the final standby manifest records profile `clean` and reconciliation `MATCH`.
+
+Phase D uses immutable SQLite generations under `/home/bdtgn/private/dbtng/sqlite/generations`, with the configured SQLite path acting as an atomic symlink. MariaDB candidates use reserved staged-table and retained-generation prefixes within the dedicated schema. Do not delete these artifacts manually while a rebuild is active.

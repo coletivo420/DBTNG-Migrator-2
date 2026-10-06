@@ -248,7 +248,7 @@ Import establishes a complete base state. Incremental sync may begin only after 
 
 Never start incremental synchronization against an arbitrary empty, partially imported or failed destination.
 
-## Planned CLI
+## Implemented CLI
 
 ```bash
 drush dbtng:import
@@ -272,6 +272,8 @@ Machine-readable preflight/results must expose clear exit states for:
 - source failure;
 - destination failure;
 - validation failure.
+
+`dbtng:rebuild --profile=full|clean` is available for an initialized standby. It uses an isolated candidate and preserves the prior publication until validation, reconciliation and the final write fence pass. Use `dbtng:reconcile` for read-only profile-aware drift reporting.
 
 ## Failure behavior
 
@@ -315,3 +317,6 @@ Imports use physical schema inventory, engine-specific logical schema builders, 
 MariaDB -> SQLite portability warnings are evidence, not noise. The initial 343 warnings were retained and investigated rather than suppressed. Warning totals can vary after a round trip because physical schema changes, including MySQL index adaptation, affect the next inventory. Warnings describe conditional semantics or adapted non-unique indexes; strict blockers such as unrepresentable unique indexes remain errors. See [PORTABILITY.md](PORTABILITY.md).
 
 MariaDB snapshots use a dedicated repeatable-read consistent transaction. Long-running snapshots can retain InnoDB undo history. SQLite snapshots use a stable read transaction and were exercised in WAL mode with a concurrent writer. Neither path uses `fetchAll()` for table transfer. Tables without a primary key remain importable but cannot support future key-based change capture.
+# Rebuilding an initialized standby
+
+`dbtng:rebuild --profile=full|clean` uses the same logical schema builders, portability gate, bounded row transfer and validation as import, but builds into an isolated candidate. The published standby is retained until the candidate passes final schema/content reconciliation under the pre-CDC source write fence. `clean` is supported only for MariaDB/MySQL primary -> SQLite standby and is not full-equivalent or promotable as a full copy.

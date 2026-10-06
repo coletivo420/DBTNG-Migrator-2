@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\Tests\dbtng_migrator\Unit\Import;
 
 use Drupal\dbtng_migrator\Import\RowTransfer;
+use Drupal\dbtng_migrator\Failure\NullFailureInjector;
 use Drupal\dbtng_migrator\Model\ColumnDefinition;
 use Drupal\dbtng_migrator\Model\DatabaseEngine;
 use Drupal\dbtng_migrator\Model\DatabaseInventory;
@@ -42,7 +43,7 @@ final class RowTransferTest extends DrupalDatabaseUnitTestCase {
     $inventory = new DatabaseInventory(DatabaseEngine::Sqlite, [$table]);
     (new SqliteSchemaBuilder(new ImportTypeMapper()))->createTables($destination, $inventory);
 
-    $result = (new RowTransfer(new CleanReplicationPolicy()))->transfer(
+    $result = (new RowTransfer(new CleanReplicationPolicy(), new NullFailureInjector()))->transfer(
       $source,
       $destination,
       $inventory,

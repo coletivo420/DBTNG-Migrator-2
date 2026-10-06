@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Drupal\dbtng_migrator\Contract;
 
 use Drupal\dbtng_migrator\Model\SnapshotManifest;
-use Drupal\dbtng_migrator\Model\StandbyCandidate;
+use Drupal\dbtng_migrator\Snapshot\CandidateContext;
 
 /**
  * Promotes an already validated isolated standby candidate.
@@ -13,7 +13,7 @@ use Drupal\dbtng_migrator\Model\StandbyCandidate;
 interface SnapshotPublisherInterface {
 
   public function publish(
-    StandbyCandidate $candidate,
+    CandidateContext $candidate,
     SnapshotManifest $manifest,
   ): void;
 
