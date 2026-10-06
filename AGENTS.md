@@ -161,5 +161,5 @@ Do not claim production readiness until the beta/stable criteria in `docs/TESTIN
 - Normal schema inventory must hide DBTNG capture tables/triggers so they are never migrated as Drupal application state.
 - Primary-key capture is allowed only for conservatively supported key types; unsupported/no-PK tables become table-dirty events.
 - MySQL/MariaDB and SQLite trigger writes must participate in the same source transaction as the application mutation.
-- Event IDs may contain gaps and may become visible out of allocation order on MySQL-family engines; do not derive a scalar applied watermark from `MAX(sequence)`.
+- Event IDs may contain gaps and may become visible out of allocation order on MySQL-family engines; do not derive a scalar applied watermark from `MAX(event_id)`.
 - Until the live development host validates E1, document the feature as code/CI validated only, not production-ready.
