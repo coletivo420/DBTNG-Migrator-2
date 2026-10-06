@@ -36,6 +36,12 @@ final class NativeRestoreManager implements NativeRestoreManagerInterface {
       || $request->format->databaseEngine() !== $resolved->standby->engine) {
       throw new DbtngException('Native restore refused: artifact engine or destination does not match the configured standby.');
     }
+    if ($resolved->standby->engine === DatabaseEngine::Sqlite) {
+      $this->sqlite->validateArtifact($request);
+    }
+    else {
+      $this->mysql->validateArtifact($request);
+    }
     $atomicSqlite = $resolved->standby->engine === DatabaseEngine::Sqlite;
     $preparation = $this->preparation->prepare($topology, $request->nonEmptyPolicy, $atomicSqlite);
     if ($resolved->standby->engine === DatabaseEngine::Sqlite) {

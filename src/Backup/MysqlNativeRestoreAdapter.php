@@ -20,7 +20,7 @@ final class MysqlNativeRestoreAdapter {
       || !in_array($request->format, [NativeBackupFormat::MysqlSql, NativeBackupFormat::MysqlSqlGzip], TRUE)) {
       throw new DbtngException('MySQL native restore accepts only a MySQL-family standby and a MySQL SQL artifact.');
     }
-    $path = $this->validatePrivateArtifact($request->backupPath, $request->format);
+    $path = $this->validateArtifact($request);
     $binary = $this->client($standby->product);
     if ($binary === NULL) {
       throw new DbtngException('No compatible native MySQL client is installed.');
@@ -43,11 +43,15 @@ final class MysqlNativeRestoreAdapter {
       throw new DbtngException('Unable to create protected native restore process files.');
     }
     $oldUmask = umask(0077);
+    $process = NULL;
+    $processClosed = FALSE;
     try {
       if (file_put_contents($credential, $this->defaultsFile($options), LOCK_EX) === FALSE) {
         throw new DbtngException('Unable to write protected native restore credentials.');
       }
-      chmod($credential, 0600);
+      if (!chmod($credential, 0600)) {
+        throw new DbtngException('Unable to protect native restore credentials.');
+      }
       $process = proc_open(
         [$binary, '--defaults-extra-file=' . $credential, '--database=' . $database],
         [0 => ['pipe', 'r'], 1 => ['file', '/dev/null', 'a'], 2 => ['file', $stderr, 'wb']],
@@ -64,6 +68,7 @@ final class MysqlNativeRestoreAdapter {
         fclose($pipes[0]);
         proc_terminate($process);
         proc_close($process);
+        $processClosed = TRUE;
         throw new DbtngException('Unable to read the native SQL restore artifact.');
       }
       try {
@@ -99,11 +104,17 @@ final class MysqlNativeRestoreAdapter {
         fclose($pipes[0]);
       }
       $exitCode = proc_close($process);
+      $processClosed = TRUE;
       if ($exitCode !== 0) {
         throw new DbtngException(sprintf('The native MySQL restore client failed with exit code %d; stderr was withheld to protect connection details.', $exitCode));
       }
     }
     catch (\Throwable $exception) {
+      if (is_resource($process) && !$processClosed) {
+        proc_terminate($process);
+        proc_close($process);
+        $processClosed = TRUE;
+      }
       if ($exception instanceof DbtngException) {
         throw $exception;
       }
@@ -118,6 +129,46 @@ final class MysqlNativeRestoreAdapter {
         unlink($stderr);
       }
     }
+  }
+
+  /**
+   * Validates the complete input artifact before destination preparation.
+   */
+  public function validateArtifact(NativeRestoreRequest $request): string {
+    $path = $this->validatePrivateArtifact($request->backupPath, $request->format);
+    if ($request->format->compressed()) {
+      $stream = gzopen($path, 'rb');
+      if ($stream === FALSE) {
+        throw new DbtngException('Compressed MySQL restore artifact is not a readable gzip stream.');
+      }
+      $bytes = 0;
+      try {
+        while (!gzeof($stream)) {
+          $chunk = gzread($stream, 1024 * 1024);
+          if ($chunk === FALSE) {
+            throw new DbtngException('Compressed MySQL restore artifact is corrupt.');
+          }
+          $bytes += strlen($chunk);
+        }
+        if (!gzclose($stream)) {
+          $stream = FALSE;
+          throw new DbtngException('Compressed MySQL restore artifact is corrupt.');
+        }
+        $stream = FALSE;
+        if ($bytes === 0) {
+          throw new DbtngException('Compressed MySQL restore artifact is empty.');
+        }
+      }
+      finally {
+        if ($stream !== FALSE) {
+          gzclose($stream);
+        }
+      }
+    }
+    elseif (filesize($path) < 1) {
+      throw new DbtngException('MySQL restore artifact is empty.');
+    }
+    return $path;
   }
 
   private function validatePrivateArtifact(string $path, NativeBackupFormat $format): string {

@@ -22,7 +22,7 @@ final class SqliteNativeRestoreAdapter {
       || !in_array($request->format, [NativeBackupFormat::SqliteDatabase, NativeBackupFormat::SqliteDatabaseGzip], TRUE)) {
       throw new DbtngException('SQLite native restore accepts only a SQLite standby and a SQLite database artifact.');
     }
-    $sourcePath = $this->validatePrivateArtifact($request->backupPath, $request->format);
+    $sourcePath = $this->validateArtifact($request);
     $targetPath = $standby->databasePath;
     $privateRoot = Settings::get('file_private_path');
     if ($targetPath === NULL || $targetPath === '' || $targetPath === ':memory:' || !is_string($privateRoot) || $privateRoot === '') {
@@ -40,6 +40,10 @@ final class SqliteNativeRestoreAdapter {
       || !str_starts_with($directory . DIRECTORY_SEPARATOR, rtrim($private, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)
       || (defined('DRUPAL_ROOT') && str_starts_with($directory . DIRECTORY_SEPARATOR, rtrim((string) realpath(DRUPAL_ROOT), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR))) {
       throw new DbtngException('SQLite standby must remain under private storage and outside the webroot.');
+    }
+    $directoryMode = fileperms($directory);
+    if ($directoryMode === FALSE || ($directoryMode & 0077) !== 0) {
+      throw new DbtngException('SQLite standby directory must be owner-private (0700 or stricter).');
     }
 
     $candidate = tempnam($directory, '.dbtng-restore-');
@@ -74,6 +78,13 @@ final class SqliteNativeRestoreAdapter {
       }
       throw new DbtngException('SQLite native restore failed; the candidate was not published.', 0, $exception);
     }
+  }
+
+  /**
+   * Validates restore input before standby preparation.
+   */
+  public function validateArtifact(NativeRestoreRequest $request): string {
+    return $this->validatePrivateArtifact($request->backupPath, $request->format);
   }
 
   private function validatePrivateArtifact(string $path, NativeBackupFormat $format): string {
@@ -147,7 +158,9 @@ final class SqliteNativeRestoreAdapter {
       }
       fclose($output);
     }
-    chmod($destination, 0600);
+    if (!chmod($destination, 0600)) {
+      throw new DbtngException('Unable to protect the private SQLite restore candidate.');
+    }
   }
 
   private function validateDatabase(string $path): void {

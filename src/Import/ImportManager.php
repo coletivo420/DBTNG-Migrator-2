@@ -255,6 +255,10 @@ final class ImportManager implements ImportManagerInterface {
       || (defined('DRUPAL_ROOT') && str_starts_with($directory . DIRECTORY_SEPARATOR, rtrim((string) realpath(DRUPAL_ROOT), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR))) {
       throw new DbtngException('SQLite import candidate must be under private storage and outside webroot.');
     }
+    $directoryMode = fileperms($directory);
+    if ($directoryMode === FALSE || ($directoryMode & 0077) !== 0) {
+      throw new DbtngException('SQLite import directory must be owner-private (0700 or stricter).');
+    }
     $candidate = tempnam($directory, '.dbtng-import-');
     if ($candidate === FALSE || !chmod($candidate, 0600)) {
       throw new DbtngException('Unable to create a private SQLite import candidate.');
