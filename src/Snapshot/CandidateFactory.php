@@ -169,6 +169,12 @@ final class CandidateFactory {
     chmod($generations, 0700);
     $currentPath = realpath($target) ?: '';
     $currentGeneration = $this->generationFromPath($currentPath);
+    // Older installs may still publish a regular SQLite file rather than a
+    // generation symlink. Give that preserved legacy snapshot a private
+    // generation identifier before publication archives it.
+    if ($currentGeneration === NULL && is_file($target) && !is_link($target)) {
+      $currentGeneration = bin2hex(random_bytes(16));
+    }
     $this->cleanStaleSqliteCandidates($generations, $standby->identity, $currentGeneration);
     $partial = $generations . DIRECTORY_SEPARATOR . $uuid . '.partial';
     $final = $generations . DIRECTORY_SEPARATOR . $uuid;
@@ -213,7 +219,7 @@ final class CandidateFactory {
       $candidatePath,
       $final,
       previousPublishedIdentifier: realpath($target) ?: NULL,
-      previousGenerationId: $this->generationFromPath(realpath($target) ?: ''),
+      previousGenerationId: $currentGeneration,
       manifestIdentity: $standby->identity,
     );
   }
