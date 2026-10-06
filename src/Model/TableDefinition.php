@@ -26,6 +26,12 @@ final readonly class TableDefinition {
    *   Source storage engine, when the database exposes one.
    * @param string|null $collation
    *   Source table collation, when available.
+   * @param list<\Drupal\dbtng_migrator\Model\IndexDefinition> $indexDefinitions
+   *   Physical indexes including prefixes and expressions.
+   * @param list<\Drupal\dbtng_migrator\Model\ForeignKeyDefinition> $foreignKeys
+   *   Physical foreign-key constraints.
+   * @param array<string, bool|string|int|null> $flags
+   *   Engine-specific structural flags such as STRICT or WITHOUT ROWID.
    */
   public function __construct(
     public string $name,
@@ -35,6 +41,10 @@ final readonly class TableDefinition {
     public array $indexes = [],
     public ?string $storageEngine = NULL,
     public ?string $collation = NULL,
+    public ?int $estimatedRows = NULL,
+    public array $indexDefinitions = [],
+    public array $foreignKeys = [],
+    public array $flags = [],
   ) {}
 
 }

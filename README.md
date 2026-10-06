@@ -44,31 +44,31 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/examples/settings.dbt
 
 ## Import and destination preparation
 
-DBTNG supports logical import in both directions:
+The product requires logical import in both directions:
 
 ```text
 MariaDB/MySQL -> SQLite
 SQLite        -> MariaDB/MySQL
 ```
 
-An empty standby is imported directly. If the standby already contains data, the operator chooses an explicit policy:
+Logical import and destination preparation are not implemented yet. The planned behavior is to import into an empty standby, or require an explicit policy when it contains data:
 
 - `abort` — default, no mutation;
 - `backup_then_clear` — create and verify a native safety backup, clear the standby, then import;
 - `clear` — explicitly clear the standby without a safety backup.
 
-DBTNG never silently merges or overwrites an existing database, and it never clears the active primary. The destination is considered initialized only after validation succeeds.
+The implementation must never silently merge or overwrite an existing database, and must never clear the active primary. The destination will be considered initialized only after validation succeeds.
 
 See [docs/IMPORT.md](docs/IMPORT.md) and [docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md).
 
 ## Native backup / download / restore
 
-DBTNG also provides same-engine native database backups:
+Phase B provides same-engine native database backups:
 
 - MariaDB/MySQL: `.sql` or `.sql.gz`;
 - SQLite: consistent `.sqlite` or `.sqlite.gz` snapshot.
 
-Backups may be created from either configured role and downloaded from the administration UI or written through CLI/private storage. Native restore targets the matching standby engine; cross-engine movement always uses DBTNG's logical import engine.
+Backups may be created from either configured role through Drush and are written to private storage. Browser downloads and native restore are planned; cross-engine movement will use DBTNG's logical import engine when implemented.
 
 The implementation is upstream-first and adapts proven behavior from Backup and Migrate, SQLite Backup, SQLite's native backup API and Drush SQL tooling instead of creating a second independent backup framework.
 
@@ -120,9 +120,9 @@ Reserved for a future, more aggressive SQLite standby projection that can exclud
 
 ## Core operations
 
-1. **NativeBackup/Restore** — produces downloadable same-engine backups and restores matching native formats.
-2. **Import** — initializes or deliberately replaces a prepared standby from the selected primary through the logical cross-engine model.
-3. **DestinationPreparation** — aborts, safety-backs-up-and-clears, or explicitly clears a non-empty standby.
+1. **Native backup** — creates a private same-engine backup for either configured role with checksum metadata.
+2. **Doctor and preflight** — resolve configured roles, inventory physical schemas, report destination state and strict portability findings.
+3. **Import/restore and destination preparation** — planned; not implemented yet.
 4. **Snapshot/Rebuild** — reconstructs an initialized standby using an isolated candidate.
 5. **ChangeCapture** — records durable changes on the selected primary using an engine-specific adapter.
 6. **PolicyEngine** — decides how standby data is represented.
@@ -135,14 +135,14 @@ Import and rebuild share schema introspection, portability analysis, bounded-mem
 The canonical integration environment for this project is the dedicated Virtualmin site:
 
 ```text
-https://bdtgn.toca.net.br
+https://dbtng.toca.net.br
 ```
 
 Codex is authorized to provision and maintain that development installation within the boundaries documented in [AGENTS.md](AGENTS.md) and [docs/DEVELOPMENT_ENVIRONMENT.md](docs/DEVELOPMENT_ENVIRONMENT.md). Administrative operations may use `sudo`; when the operating system requests the root/sudo password, it must be entered interactively by the human and never stored, echoed, committed or passed through chat.
 
 ## Project status
 
-This repository is in the bootstrap phase. Interfaces, models, policies, documentation and CI are being established before database introspection and synchronization implementation. **Do not deploy this branch as a production standby system yet.**
+This repository is in the early operational foundation phase. Phase B implements configured primary/standby resolution, physical MariaDB/MySQL and SQLite inventories, destination-state inspection, conservative portability preflight, and same-engine native backups through Drush. The Phase B branch has passed local quality checks and live validation; GitHub CI/CodeQL and PR review remain before merge. **It does not yet import, restore, clear, continuously synchronize, or fail over. Do not deploy it as a production standby system.**
 
 ## Requirements
 
@@ -155,16 +155,15 @@ This repository is in the bootstrap phase. Interfaces, models, policies, documen
 
 ## Roadmap
 
-1. Project skeleton, selectable topology contracts, documentation and CI.
-2. MariaDB/MySQL and SQLite physical schema inventory and portability analysis.
-3. Native database backup/download/restore and controlled standby clearing.
-4. Logical import/bootstrap in both directions.
-5. Destination builders and consistent rebuilds for both directions.
-6. Engine-specific durable change capture.
-7. Continuous synchronization and reconciliation.
-8. Optional SQLite-standby clean projection.
-9. Entity-aware revision projection.
-10. Validation, lag monitoring and application compatibility tests.
-11. Manual failover and controlled recovery in either direction.
+1. Project skeleton, selectable topology contracts, documentation and CI. (complete)
+2. Runtime topology resolver, doctor/preflight, MariaDB/MySQL and SQLite physical inventory, destination state inspection, portability analysis, and same-engine native backups. (implemented and live-validated; CI/merge pending)
+3. Controlled standby clearing, native restore and logical import/bootstrap in both directions.
+4. Destination builders and consistent rebuilds for both directions.
+5. Engine-specific durable change capture.
+6. Continuous synchronization and reconciliation.
+7. Optional SQLite-standby clean projection.
+8. Entity-aware revision projection.
+9. Validation, lag monitoring and application compatibility tests.
+10. Manual failover and controlled recovery in either direction.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/IMPORT.md](docs/IMPORT.md), [docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md), [docs/UPSTREAM_COMPONENTS.md](docs/UPSTREAM_COMPONENTS.md), [docs/SYNC_MODEL.md](docs/SYNC_MODEL.md), [docs/DEVELOPMENT_ENVIRONMENT.md](docs/DEVELOPMENT_ENVIRONMENT.md) and [AGENTS.md](AGENTS.md) before changing core behavior.

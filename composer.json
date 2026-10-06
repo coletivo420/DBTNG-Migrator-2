@@ -14,6 +14,9 @@
     "phpstan/phpstan": "^2.1",
     "phpunit/phpunit": "^11.0"
   },
+  "conflict": {
+    "drush/drush": "<13.7"
+  },
   "autoload": {
     "psr-4": {
       "Drupal\\dbtng_migrator\\": "src/"
@@ -26,12 +29,12 @@
   },
   "scripts": {
     "check": [
-      "@validate",
+      "@validate-project",
       "@phpcs",
       "@phpstan",
       "@test"
     ],
-    "validate": "composer validate --strict --no-check-publish",
+    "validate-project": "composer validate --strict --no-check-publish",
     "phpcs": "phpcs --standard=phpcs.xml.dist src tests",
     "phpcbf": "phpcbf --standard=phpcs.xml.dist src tests",
     "phpstan": "phpstan analyse --configuration=phpstan.neon.dist --no-progress",

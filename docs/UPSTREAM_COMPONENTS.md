@@ -138,6 +138,18 @@ Keep as a candidate implementation dependency for native dump generation if it m
 
 ## Upstream-first implementation checklist
 
+### Phase B implementation record
+
+- Drush custom command registration was checked against the installed Drush 13.8 command generator/source and current Drush 14 SQL subsystem. Commands use Symfony Console `#[AsCommand]` classes in `src/Drush/Commands` with Drush `AutowireTrait`; no Drush internal runtime service is required by the module.
+- Drush's MariaDB/MySQL dump behavior was studied as an operational reference: engine-appropriate client selection, consistent transaction and protected client options. DBTNG implements its own small adapter because direct-to-private-file streaming is module-specific.
+- PHP `proc_open()` with an argv array avoids shell parsing. Credentials are placed in a temporary mode-0600 defaults file, not in argv.
+- SQLite Online Backup API is called through PHP `SQLite3::backup()` for consistent live snapshots, including WAL databases.
+- Backup and Migrate 5.1.5 was identified by tag/commit `b64503cf`; its pipeline/streaming architecture was studied as design reference. SQLite Backup 1.0.0-alpha1 was reviewed at project/documentation level as a whole-database workflow reference.
+- No upstream source file or non-trivial code block was copied into DBTNG. These are call/adapt/design-reference decisions, not code-port claims.
+- Live MariaDB 11.8.6 backups were validated on the protected development host in both configured roles. SQLite 3.46.1 backups passed integrity checks, including a WAL-mode snapshot with a concurrent open writer and a committed fixture row.
+- Drush 13.8 command registration was verified on a real Drupal 11.4.8 site. Its module command-file finder does not follow Composer path-repository symlinks, so this disposable site's `drush/drush.yml` explicitly declares the module Symfony commands. The source classes use Drush's current `AutowireTrait`, Symfony `AsCommand`, and Drush full-bootstrap attribute; no legacy Drush service container or internal command classes are used.
+- Drupal SQLite tables may use `NOCASE_UTF8`. SQLite backup validation must register Drupal's Unicode collation on SQLite3 handles; otherwise `PRAGMA integrity_check` fails when it reads those indexes.
+
 Before implementing a backup/restore/clear adapter:
 
 - [ ] identify the closest upstream implementation;
@@ -147,5 +159,5 @@ Before implementing a backup/restore/clear adapter:
 - [ ] remove assumptions incompatible with selectable primary roles;
 - [ ] avoid secrets in argv/logs;
 - [ ] preserve bounded-memory streaming;
-- [ ] add engine integration tests at `bdtgn.toca.net.br`;
+- [ ] add engine integration tests at `dbtng.toca.net.br`;
 - [ ] update this document when provenance changes.

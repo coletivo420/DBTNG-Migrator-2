@@ -290,7 +290,7 @@ For MariaDB/MySQL, the destination adapter must track created state and define c
 
 ## Development acceptance
 
-On `bdtgn.toca.net.br`, integration tests must prove:
+On `dbtng.toca.net.br`, integration tests must prove:
 
 1. populated MariaDB/MySQL -> empty SQLite succeeds;
 2. populated SQLite -> empty MariaDB/MySQL succeeds;

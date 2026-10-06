@@ -15,6 +15,7 @@ final readonly class PortabilityIssue {
     public string $severity = 'error',
     public ?string $table = NULL,
     public ?string $column = NULL,
+    public ?string $objectName = NULL,
   ) {}
 
 }

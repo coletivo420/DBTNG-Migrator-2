@@ -9,6 +9,14 @@ DBTNG has two distinct data-movement families:
 
 Do not parse a MySQL SQL dump as if it were a portable SQLite migration format. Cross-engine movement always uses DBTNG's logical migration engine.
 
+## Implemented in Phase B: native CLI backup
+
+`drush dbtng:backup --role=primary|standby` writes to a private local directory, optionally gzip-compresses, and reports role, engine, format, size and SHA-256. The default destination is `<file_private_path>/dbtng/backups`; an explicit `--output` must be absolute, outside the webroot, writable and owner-private. Credentials are not placed in the native client argument vector. The MariaDB/MySQL adapter uses a mode-0600 temporary defaults file and deletes it after the process. SQLite uses PHP `SQLite3::backup()` and verifies `PRAGMA integrity_check` before finalizing the artifact.
+
+This is an operator CLI artifact, not a browser download endpoint. Native restore, clear and backup-then-clear are not implemented in Phase B.
+
+The SQLite snapshot adapter registers Drupal's NOCASE_UTF8 collation before backup validation. Drupal schemas can contain indexes that use this collation; a plain SQLite3 connection reports an error when checking those indexes unless the collation is registered.
+
 ## Native download formats
 
 ### MariaDB/MySQL
@@ -61,14 +69,14 @@ The administration UI and CLI may back up either configured role:
 
 Backup is read-only and must never cause a role change.
 
-Planned commands:
+Implemented commands:
 
 ```bash
 drush dbtng:backup --role=primary --output=/private/path
 drush dbtng:backup --role=standby --output=/private/path
 ```
 
-Planned administration action:
+Future administration action (not implemented):
 
 ```text
 Configuration

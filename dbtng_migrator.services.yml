@@ -1,6 +1,78 @@
 services:
-  dbtng_migrator.policy.full:
-    class: Drupal\dbtng_migrator\Policy\FullReplicationPolicy
+  dbtng_migrator.connection_factory:
+    class: Drupal\dbtng_migrator\Connection\DrupalDatabaseConnectionFactory
 
-  dbtng_migrator.policy.clean:
-    class: Drupal\dbtng_migrator\Policy\CleanReplicationPolicy
+  dbtng_migrator.runtime_topology_settings:
+    class: Drupal\dbtng_migrator\Connection\DrupalRuntimeTopologySettings
+
+  dbtng_migrator.topology_resolver:
+    class: Drupal\dbtng_migrator\Connection\DatabaseTopologyResolver
+    arguments:
+      - '@dbtng_migrator.connection_factory'
+      - '@dbtng_migrator.runtime_topology_settings'
+      - '@config.factory'
+
+  dbtng_migrator.schema.mysql:
+    class: Drupal\dbtng_migrator\Source\Mysql\MysqlFamilySchemaIntrospector
+
+  dbtng_migrator.schema.sqlite:
+    class: Drupal\dbtng_migrator\Source\Sqlite\SqliteSchemaIntrospector
+
+  dbtng_migrator.schema.manager:
+    class: Drupal\dbtng_migrator\Schema\SchemaIntrospectionManager
+    arguments:
+      - '@dbtng_migrator.schema.mysql'
+      - '@dbtng_migrator.schema.sqlite'
+
+  dbtng_migrator.destination.mysql:
+    class: Drupal\dbtng_migrator\Destination\Mysql\MysqlDestinationStateInspector
+
+  dbtng_migrator.destination.sqlite:
+    class: Drupal\dbtng_migrator\Destination\Sqlite\SqliteDestinationStateInspector
+
+  dbtng_migrator.destination.manager:
+    class: Drupal\dbtng_migrator\Destination\DestinationStateInspectionManager
+    arguments:
+      - '@dbtng_migrator.destination.mysql'
+      - '@dbtng_migrator.destination.sqlite'
+
+  dbtng_migrator.portability_analyzer:
+    class: Drupal\dbtng_migrator\Schema\PortabilityAnalyzer
+
+  dbtng_migrator.backup.directory_manager:
+    class: Drupal\dbtng_migrator\Backup\BackupDirectoryManager
+
+  dbtng_migrator.backup.mysql:
+    class: Drupal\dbtng_migrator\Backup\MysqlNativeBackupAdapter
+
+  dbtng_migrator.backup.sqlite:
+    class: Drupal\dbtng_migrator\Backup\SqliteNativeBackupAdapter
+
+  dbtng_migrator.backup.manager:
+    class: Drupal\dbtng_migrator\Backup\NativeBackupManager
+    arguments:
+      - '@dbtng_migrator.topology_resolver'
+      - '@dbtng_migrator.backup.directory_manager'
+      - '@dbtng_migrator.backup.mysql'
+      - '@dbtng_migrator.backup.sqlite'
+
+  'Drupal\dbtng_migrator\Connection\DatabaseTopologyResolver':
+    alias: dbtng_migrator.topology_resolver
+
+  'Drupal\dbtng_migrator\Schema\SchemaIntrospectionManager':
+    alias: dbtng_migrator.schema.manager
+
+  'Drupal\dbtng_migrator\Destination\DestinationStateInspectionManager':
+    alias: dbtng_migrator.destination.manager
+
+  'Drupal\dbtng_migrator\Backup\NativeBackupManager':
+    alias: dbtng_migrator.backup.manager
+
+  'Drupal\dbtng_migrator\Source\Mysql\MysqlFamilySchemaIntrospector':
+    alias: dbtng_migrator.schema.mysql
+
+  'Drupal\dbtng_migrator\Source\Sqlite\SqliteSchemaIntrospector':
+    alias: dbtng_migrator.schema.sqlite
+
+  'Drupal\dbtng_migrator\Contract\PortabilityAnalyzerInterface':
+    alias: dbtng_migrator.portability_analyzer
