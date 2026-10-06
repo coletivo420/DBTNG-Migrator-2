@@ -80,7 +80,7 @@ final class MysqlFamilySchemaIntrospector implements SourceSchemaIntrospectorInt
         $native,
         PhysicalTypeMapper::logicalType((string) $row['DATA_TYPE']),
         strtoupper((string) $row['IS_NULLABLE']) === 'YES',
-        $row['COLUMN_DEFAULT'],
+        $this->normalizeDefault($connection, $row['COLUMN_DEFAULT']),
         preg_match('/\bunsigned\b/i', $native) === 1,
         $this->nullableInt($row['CHARACTER_MAXIMUM_LENGTH']),
         $this->nullableInt($row['NUMERIC_PRECISION']),
@@ -226,6 +226,22 @@ final class MysqlFamilySchemaIntrospector implements SourceSchemaIntrospectorInt
 
   private function nullableInt(mixed $value): ?int {
     return $value === NULL ? NULL : (int) $value;
+  }
+
+  /**
+   * Converts a quoted information_schema default expression to its value.
+   *
+   * MariaDB and MySQL expose quoted string defaults as SQL literals. Decode
+   * only a single quoted literal; functions and backend expressions remain
+   * available to portability analysis without being evaluated.
+   */
+  private function normalizeDefault(Connection $connection, mixed $default): mixed {
+    if (!is_string($default)
+      || preg_match("/\\A'(?:''|[^'])*'\\z/D", $default) !== 1) {
+      return $default;
+    }
+    $statement = $connection->query('SELECT ' . $default);
+    return $statement?->fetchField();
   }
 
   private function matchesPrefix(string $table, mixed $configuredPrefix): bool {
