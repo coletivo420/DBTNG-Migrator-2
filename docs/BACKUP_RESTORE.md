@@ -199,3 +199,13 @@ Implementation should adapt existing behavior documented in [UPSTREAM_COMPONENTS
 - Drush's native SQL dump/import/drop behavior.
 
 Do not invent a second unrelated backup framework.
+
+## Phase C native restore and safety preparation
+
+`drush dbtng:restore <file>` restores only to the configured standby and only when the artifact format matches that standby engine. MariaDB/MySQL restore streams through the matching native client using a protected temporary credentials file. SQLite restore validates the SQLite header and integrity in private temporary storage, then publishes a candidate file. Gzip input is validated before destructive preparation.
+
+When the destination is non-empty, `abort` is the default. `backup_then_clear` first creates and verifies a native safety artifact (checksum, nonzero size and engine-specific validation), then clears the standby. `clear` requires explicit selection. MySQL-family preparation removes scoped database objects and verifies the destination is empty; SQLite preparation replaces only the standby file. Primary identity checks are mandatory in all cases.
+
+After native restore, DBTNG re-introspects and validates the restored database. MySQL-family validation includes `CHECK TABLE`; SQLite validation runs `integrity_check` and foreign-key checks where applicable. Validated imports and restores write a private versioned standby manifest only after completion. The manifest records validation and topology metadata, never credentials.
+
+The development integration test exercised MySQL and SQLite restore, gzip validation, wrong-engine rejection, both safety-backup flows, clear, abort, and primary-clear refusal. Corrupt input and a simulated safety-backup failure were verified to leave destination data unchanged.

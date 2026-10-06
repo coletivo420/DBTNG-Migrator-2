@@ -77,6 +77,8 @@ Codex may:
 - Never ask the user to paste the root/sudo password into chat, a file, an environment variable or a command argument.
 - Let `sudo` request the password interactively in the user's terminal.
 - Never run commands that reveal cached credentials or Virtualmin password fields.
+- Do not use `virtualmin list-domains --multiline` in normal automation or diagnosis: its output may contain database credentials. Administrative commands must request minimal output and avoid password-bearing fields.
+- No credential may appear in command output, logs, reports, CI artifacts or chat. Never inspect current credentials to recover or print them.
 - Generate development account/database passwords securely and keep them out of Git and normal logs.
 - Prefer `--passfile`/protected temporary files where supported; delete temporary credential files immediately.
 - Run Composer, Git, Drush and application commands as the Virtualmin domain owner, **not as root**.
@@ -124,3 +126,11 @@ Every implementation commit should answer:
 - Was the Virtualmin integration environment used, and if not, why was it unnecessary?
 
 Do not claim production readiness until the beta/stable criteria in `docs/TESTING.md` are satisfied.
+
+## Phase C regression checks
+
+- Keep `dbtng.toca.net.br` as the only canonical development hostname.
+- Never run `virtualmin list-domains --multiline` in normal automation or diagnostics; it may expose database passwords. Administrative commands and reports must keep credentials out of terminal output, logs, CI and chat.
+- Before destructive work, prove the target is the configured standby and physically distinct from primary. Never clear the primary.
+- Logical imports must stream bounded batches, validate schema/data/integrity, and publish initialized state only after all checks pass.
+- Preserve the distinction between physical portability warnings and strict blockers; do not suppress warnings just to lower counts.

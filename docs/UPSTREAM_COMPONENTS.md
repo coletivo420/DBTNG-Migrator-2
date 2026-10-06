@@ -161,3 +161,7 @@ Before implementing a backup/restore/clear adapter:
 - [ ] preserve bounded-memory streaming;
 - [ ] add engine integration tests at `dbtng.toca.net.br`;
 - [ ] update this document when provenance changes.
+
+## Phase C provenance
+
+No upstream source lines or non-trivial code blocks were copied into the Phase C cleaners, restore adapters, schema builders or import pipeline. The implementation uses the platform's native database APIs and applies the Drush SQL drop/import, credential-file and process-handling behavior studied during Phase B as design reference. No upstream dependency was added for Phase C. This is a call/adapt/design-reference outcome, not a code-port claim.

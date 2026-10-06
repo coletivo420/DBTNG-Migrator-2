@@ -305,3 +305,13 @@ On `dbtng.toca.net.br`, integration tests must prove:
 11. a `full` imported destination can boot Drupal after controlled topology selection.
 
 See [BACKUP_RESTORE.md](BACKUP_RESTORE.md) for native backup/restore semantics and [UPSTREAM_COMPONENTS.md](UPSTREAM_COMPONENTS.md) for implementation provenance.
+
+## Phase C behavior and live evidence
+
+`drush dbtng:import` implements `full` in both directions and `clean` only from MariaDB/MySQL to a SQLite standby. `--on-non-empty` defaults to `abort`; `backup_then_clear` verifies a private native safety artifact before preparation, while `clear` is explicit and does not create a safety artifact. Neither policy can target primary.
+
+Imports use physical schema inventory, engine-specific logical schema builders, bounded row batches and post-transfer validation. The live Drupal 11.4.8 site validated both full directions, clean projection, row counts, SQLite integrity and foreign-key checks, followed by Drupal boot and representative CRUD after controlled promotion. A 1,200-row unknown-table fixture crossed multiple transfer batches and was preserved by both full and clean policies.
+
+MariaDB -> SQLite portability warnings are evidence, not noise. The initial 343 warnings were retained and investigated rather than suppressed. Warning totals can vary after a round trip because physical schema changes, including MySQL index adaptation, affect the next inventory. Warnings describe conditional semantics or adapted non-unique indexes; strict blockers such as unrepresentable unique indexes remain errors. See [PORTABILITY.md](PORTABILITY.md).
+
+MariaDB snapshots use a dedicated repeatable-read consistent transaction. Long-running snapshots can retain InnoDB undo history. SQLite snapshots use a stable read transaction and were exercised in WAL mode with a concurrent writer. Neither path uses `fetchAll()` for table transfer. Tables without a primary key remain importable but cannot support future key-based change capture.

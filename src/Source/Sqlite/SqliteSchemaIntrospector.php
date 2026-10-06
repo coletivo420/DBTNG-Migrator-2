@@ -52,16 +52,33 @@ final class SqliteSchemaIntrospector implements SourceSchemaIntrospectorInterfac
       foreach ($this->rows($connection, "PRAGMA table_xinfo({$quotedName})") as $columnRow) {
         $hiddenValue = (int) $columnRow['hidden'];
         $nativeType = (string) $columnRow['type'];
+        $declaredType = strtolower((string) preg_replace('/\s*\(.*/', '', $nativeType));
+        $logicalType = PhysicalTypeMapper::logicalType($declaredType);
+        if ($logicalType === 'unknown') {
+          $logicalType = PhysicalTypeMapper::logicalType($this->sqliteAffinityType($nativeType));
+        }
+        $length = NULL;
+        $precision = NULL;
+        $scale = NULL;
+        if (preg_match('/\((\d+)(?:\s*,\s*(\d+))?\)/', $nativeType, $typeDimensions) === 1) {
+          if ($logicalType === 'varchar') {
+            $length = (int) $typeDimensions[1];
+          }
+          elseif ($logicalType === 'numeric') {
+            $precision = (int) $typeDimensions[1];
+            $scale = isset($typeDimensions[2]) ? (int) $typeDimensions[2] : 0;
+          }
+        }
         $column = new ColumnDefinition(
           (string) $columnRow['name'],
           $nativeType,
-          PhysicalTypeMapper::logicalType($this->sqliteAffinityType($nativeType)),
+          $logicalType,
           (int) $columnRow['notnull'] === 0,
           $columnRow['dflt_value'],
           FALSE,
-          NULL,
-          NULL,
-          NULL,
+          $length,
+          $precision,
+          $scale,
           FALSE,
           in_array($hiddenValue, [2, 3], TRUE),
           NULL,
