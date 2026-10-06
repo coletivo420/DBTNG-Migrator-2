@@ -279,9 +279,13 @@ final class CandidateFactory {
         throw new DbtngException('Unexpected SQLite generation filesystem object.');
       }
       $manifest = $this->manifests->readVersion($identity, $entry);
-      if ($manifest !== NULL && ($manifest['lifecycle_state'] ?? NULL) === 'candidate') {
+      $candidateState = $manifest !== NULL && ($manifest['lifecycle_state'] ?? NULL) === 'candidate';
+      $databaseFile = $path . DIRECTORY_SEPARATOR . 'dbtng.sqlite';
+      if ($candidateState || !is_file($databaseFile)) {
         $this->removeGeneratedDirectory($path);
-        $this->manifests->deleteVersion($identity, $entry);
+        if ($manifest !== NULL) {
+          $this->manifests->deleteVersion($identity, $entry);
+        }
       }
     }
   }
