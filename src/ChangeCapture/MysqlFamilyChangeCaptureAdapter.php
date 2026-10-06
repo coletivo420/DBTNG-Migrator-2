@@ -89,6 +89,12 @@ final class MysqlFamilyChangeCaptureAdapter implements ChangeCaptureAdapterInter
     );
   }
 
+  /**
+   * {@inheritdoc}
+   *
+   * @return list<\Drupal\dbtng_migrator\Model\ChangeRecord>
+   *   Currently visible pending events.
+   */
   public function pending(Connection $connection, int $limit = 500): array {
     $this->assertLimit($limit);
     if (!$this->logTableExists($connection)) {
