@@ -47,7 +47,7 @@ final class SqliteChangeCaptureAdapter implements ChangeCaptureAdapterInterface 
         if ($this->triggerExists($connection, $name)) {
           continue;
         }
-        $connection->query($this->triggerSql($connection, $table, $identity, $operation, $name));
+        $this->executeTriggerDdl($connection, $this->triggerSql($connection, $table, $identity, $operation, $name));
       }
     }
 
@@ -261,6 +261,19 @@ final class SqliteChangeCaptureAdapter implements ChangeCaptureAdapterInterface 
 
   private function literal(string $value): string {
     return "'" . str_replace("'", "''", $value) . "'";
+  }
+
+  /**
+   * Executes one SQLite trigger DDL statement through the client connection.
+   *
+   * Drupal's generic query guard rejects semicolons, while SQLite trigger
+   * bodies require a statement terminator before END.
+   */
+  private function executeTriggerDdl(Connection $connection, string $sql): void {
+    $client = $connection->getClientConnection();
+    if (!$client instanceof \PDO || $client->exec($sql) === FALSE) {
+      throw new DbtngException('Unable to create the SQLite change-capture trigger.');
+    }
   }
 
   private function assertConnection(Connection $connection): void {
