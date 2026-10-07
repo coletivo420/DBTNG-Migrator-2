@@ -1,0 +1,68 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Drupal\dbtng_migrator\Sync;
+
+use Drupal\dbtng_migrator\Contract\ChangeCaptureInterface;
+use Drupal\dbtng_migrator\Contract\ClockInterface;
+use Drupal\dbtng_migrator\Contract\DatabaseTopologyResolverInterface;
+use Drupal\dbtng_migrator\Model\SyncHealth;
+use Drupal\dbtng_migrator\Model\SyncMonitoringReport;
+use Drupal\dbtng_migrator\Model\SyncWorkerState;
+
+/**
+ * Classifies continuous-sync health without invoking systemd.
+ */
+final class SyncMonitoringService {
+
+  public function __construct(
+    private readonly ChangeCaptureInterface $capture,
+    private readonly DatabaseTopologyResolverInterface $resolver,
+    private readonly SyncWorkerConfigurationFactory $configurationFactory,
+    private readonly SyncWorkerStateStore $stateStore,
+    private readonly ClockInterface $clock,
+  ) {}
+
+  public function report(): SyncMonitoringReport {
+    $configuration = $this->configurationFactory->create();
+    $topology = $this->resolver->resolve();
+    $capture = $this->capture->status();
+    $worker = $this->stateStore->read();
+    $heartbeatAge = $worker === NULL ? NULL : max(
+      0,
+      $this->clock->now()->getTimestamp() - (new \DateTimeImmutable($worker->heartbeatAt))->getTimestamp(),
+    );
+
+    $health = match (TRUE) {
+      !$capture->healthy => SyncHealth::Blocked,
+      $worker === NULL => SyncHealth::Stale,
+      $worker->state === SyncWorkerState::Error => SyncHealth::Error,
+      $worker->state === SyncWorkerState::Blocked => SyncHealth::Blocked,
+      $heartbeatAge !== NULL && $heartbeatAge > $configuration->heartbeatStaleSeconds => SyncHealth::Stale,
+      $worker->state === SyncWorkerState::Backoff => SyncHealth::Backoff,
+      $capture->pendingEvents > 0
+        && ($capture->oldestPendingAgeSeconds ?? 0) >= $configuration->lagWarningSeconds => SyncHealth::Lagging,
+      $capture->pendingEvents > 0 => SyncHealth::CatchingUp,
+      default => SyncHealth::Healthy,
+    };
+
+    return new SyncMonitoringReport(
+      $health,
+      $worker?->state,
+      $worker?->pid,
+      $heartbeatAge,
+      $capture->healthy,
+      $capture->pendingEvents,
+      $capture->oldestPendingAgeSeconds,
+      $topology->primary->label(),
+      $topology->standby->label(),
+      $topology->profile->value,
+      $worker?->lastSuccessAt,
+      $worker?->consecutiveFailures ?? 0,
+      $worker?->currentBackoffSeconds ?? 0,
+      $worker?->lastErrorClass,
+    );
+  }
+
+}

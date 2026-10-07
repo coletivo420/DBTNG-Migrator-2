@@ -5,41 +5,68 @@ declare(strict_types=1);
 namespace Drupal\dbtng_migrator\Drush\Commands;
 
 use Drupal\dbtng_migrator\Contract\SyncEngineInterface;
+use Drupal\dbtng_migrator\Sync\ContinuousSyncWorker;
 use Drush\Attributes as CLI;
 use Drush\Boot\DrupalBootLevels;
 use Drush\Commands\AutowireTrait;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Command\SignalableCommandInterface;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * Runs exactly one bounded synchronization batch. */
-#[AsCommand(name: 'dbtng:sync', description: 'Apply one bounded batch of captured changes to the standby.')]
+ * Runs one bounded sync batch or the supervised continuous worker.
+ */
+#[AsCommand(name: 'dbtng:sync', description: 'Apply captured changes to the standby once or continuously.')]
 #[CLI\Bootstrap(level: DrupalBootLevels::FULL)]
-final class SyncCommand extends Command {
+final class SyncCommand extends Command implements SignalableCommandInterface {
 
   use AutowireTrait;
 
-  public function __construct(private readonly SyncEngineInterface $sync) {
+  public function __construct(
+    private readonly SyncEngineInterface $sync,
+    private readonly ContinuousSyncWorker $worker,
+  ) {
     parent::__construct();
   }
 
   protected function configure(): void {
     $this
-      ->addOption('once', NULL, InputOption::VALUE_NONE, 'Run one bounded batch (the only supported mode).')
-      ->addOption('limit', NULL, InputOption::VALUE_REQUIRED, 'Maximum events to read in this batch.', '500');
+      ->addOption('once', NULL, InputOption::VALUE_NONE, 'Run one bounded batch explicitly.')
+      ->addOption('watch', NULL, InputOption::VALUE_NONE, 'Run the continuous sync worker until signalled.')
+      ->addOption('limit', NULL, InputOption::VALUE_REQUIRED, 'Maximum events per batch; defaults to 500 for one-shot and configured batch_events for watch.');
   }
 
   protected function execute(InputInterface $input, OutputInterface $output): int {
-    $limit = filter_var($input->getOption('limit'), FILTER_VALIDATE_INT);
-    if (!is_int($limit) || $limit < 1 || $limit > 5000) {
-      $output->writeln('<error>--limit must be an integer from 1 to 5000.</error>');
+    $once = (bool) $input->getOption('once');
+    $watch = (bool) $input->getOption('watch');
+    if ($once && $watch) {
+      $output->writeln('<error>--once and --watch are mutually exclusive.</error>');
       return Command::INVALID;
     }
+
+    $rawLimit = $input->getOption('limit');
+    $limit = NULL;
+    if ($rawLimit !== NULL) {
+      $validated = filter_var($rawLimit, FILTER_VALIDATE_INT);
+      if (!is_int($validated) || $validated < 1 || $validated > 5000) {
+        $output->writeln('<error>--limit must be an integer from 1 to 5000.</error>');
+        return Command::INVALID;
+      }
+      $limit = $validated;
+    }
+
     try {
-      $result = $this->sync->syncOnce($limit);
+      if ($watch) {
+        $output->writeln('<info>DBTNG continuous sync worker starting.</info>');
+        $this->worker->run($limit);
+        $output->writeln('<info>DBTNG continuous sync worker stopped.</info>');
+        return Command::SUCCESS;
+      }
+
+      $result = $this->sync->syncOnce($limit ?? 500);
       $output->writeln('<info>DBTNG Sync (one bounded batch)</info>');
       $output->writeln('Primary: ' . $result->primaryEngine);
       $output->writeln('Standby: ' . $result->standbyEngine);
@@ -63,6 +90,27 @@ final class SyncCommand extends Command {
       $output->writeln('<comment>' . $exception->getMessage() . '</comment>');
       return Command::FAILURE;
     }
+  }
+
+  /**
+   * {@inheritdoc}
+   *
+   * @return list<int>
+   *   Available graceful-stop signals.
+   */
+  public function getSubscribedSignals(): array {
+    $signals = [];
+    foreach (['SIGINT', 'SIGTERM'] as $constant) {
+      if (defined($constant)) {
+        $signals[] = (int) constant($constant);
+      }
+    }
+    return $signals;
+  }
+
+  public function handleSignal(int $signal, int|false $previousExitCode = 0): int|false {
+    $this->worker->requestStop();
+    return FALSE;
   }
 
 }

@@ -44,6 +44,39 @@ services:
   dbtng_migrator.sync.table_reconciler:
     class: Drupal\dbtng_migrator\Sync\TableReconciler
 
+  dbtng_migrator.sync.clock:
+    class: Drupal\dbtng_migrator\Sync\SystemClock
+
+  dbtng_migrator.sync.sleeper:
+    class: Drupal\dbtng_migrator\Sync\SystemSleeper
+
+  dbtng_migrator.sync.runtime_directory:
+    class: Drupal\dbtng_migrator\Sync\PrivateRuntimeDirectory
+
+  dbtng_migrator.sync.worker_lock:
+    class: Drupal\dbtng_migrator\Sync\SyncWorkerLock
+    arguments:
+      - '@dbtng_migrator.sync.runtime_directory'
+
+  dbtng_migrator.sync.state_store:
+    class: Drupal\dbtng_migrator\Sync\SyncWorkerStateStore
+    arguments:
+      - '@dbtng_migrator.sync.runtime_directory'
+
+  dbtng_migrator.sync.configuration_factory:
+    class: Drupal\dbtng_migrator\Sync\SyncWorkerConfigurationFactory
+    arguments:
+      - '@config.factory'
+
+  dbtng_migrator.sync.backoff:
+    class: Drupal\dbtng_migrator\Sync\SyncBackoffPolicy
+
+  dbtng_migrator.logger:
+    class: Drupal\Core\Logger\LoggerChannel
+    factory: ['@logger.factory', 'get']
+    arguments:
+      - 'dbtng_migrator'
+
   dbtng_migrator.sync.engine:
     class: Drupal\dbtng_migrator\Sync\SyncEngine
     arguments:
@@ -60,6 +93,29 @@ services:
       - '@dbtng_migrator.schema.fingerprint'
       - '@dbtng_migrator.operation_lock'
       - '@dbtng_migrator.failure_injector'
+
+  dbtng_migrator.sync.worker:
+    class: Drupal\dbtng_migrator\Sync\ContinuousSyncWorker
+    arguments:
+      - '@Drupal\dbtng_migrator\Contract\SyncEngineInterface'
+      - '@Drupal\dbtng_migrator\Contract\ChangeCaptureInterface'
+      - '@Drupal\dbtng_migrator\Contract\DatabaseTopologyResolverInterface'
+      - '@dbtng_migrator.sync.configuration_factory'
+      - '@dbtng_migrator.sync.backoff'
+      - '@dbtng_migrator.sync.state_store'
+      - '@dbtng_migrator.sync.worker_lock'
+      - '@dbtng_migrator.sync.clock'
+      - '@dbtng_migrator.sync.sleeper'
+      - '@dbtng_migrator.logger'
+
+  dbtng_migrator.sync.monitor:
+    class: Drupal\dbtng_migrator\Sync\SyncMonitoringService
+    arguments:
+      - '@Drupal\dbtng_migrator\Contract\ChangeCaptureInterface'
+      - '@Drupal\dbtng_migrator\Contract\DatabaseTopologyResolverInterface'
+      - '@dbtng_migrator.sync.configuration_factory'
+      - '@dbtng_migrator.sync.state_store'
+      - '@dbtng_migrator.sync.clock'
 
   dbtng_migrator.snapshot.candidate_factory:
     class: Drupal\dbtng_migrator\Snapshot\CandidateFactory
@@ -322,3 +378,12 @@ services:
 
   'Drupal\dbtng_migrator\Contract\SyncEngineInterface':
     alias: dbtng_migrator.sync.engine
+
+  'Drupal\dbtng_migrator\Contract\DatabaseTopologyResolverInterface':
+    alias: dbtng_migrator.topology_resolver
+
+  'Drupal\dbtng_migrator\Sync\ContinuousSyncWorker':
+    alias: dbtng_migrator.sync.worker
+
+  'Drupal\dbtng_migrator\Sync\SyncMonitoringService':
+    alias: dbtng_migrator.sync.monitor
