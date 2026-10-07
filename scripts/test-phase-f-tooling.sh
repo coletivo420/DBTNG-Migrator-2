@@ -53,4 +53,16 @@ if "${script_dir}/validate-systemd-unit.sh" "${tmpdir}/once.service" >/dev/null 
   die "Validator accepted --once in the continuous service."
 fi
 
+cp "$unit" "${tmpdir}/envfile.service"
+printf '\nEnvironmentFile=/tmp/dbtng-secret.env\n' >>"${tmpdir}/envfile.service"
+if "${script_dir}/validate-systemd-unit.sh" "${tmpdir}/envfile.service" >/dev/null 2>&1; then
+  die "Validator accepted EnvironmentFile= in the continuous service."
+fi
+
+cp "$unit" "${tmpdir}/duplicate-user.service"
+printf '\nUser=root\n' >>"${tmpdir}/duplicate-user.service"
+if "${script_dir}/validate-systemd-unit.sh" "${tmpdir}/duplicate-user.service" >/dev/null 2>&1; then
+  die "Validator accepted an ambiguous duplicate User= override."
+fi
+
 printf 'PASS: Phase F tooling self-tests\n'
