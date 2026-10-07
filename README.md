@@ -163,9 +163,26 @@ Phases A through E2 are merged and live-validated. Phase F code adds `drush dbtn
 4. Candidate-based rebuild, publication and profile-aware reconciliation. (complete)
 5. Durable primary-side change capture and bounded one-shot standby application. (complete)
 6. Continuous synchronization worker and operational backlog-age monitoring. (Phase F implementation in PR; live systemd gate pending)
+7. Failover/recovery control plane. Phase G1 adds a strictly read-only promotion-readiness checker; authority switching remains manual and external.
 7. Optional SQLite-standby clean projection.
 8. Entity-aware revision projection.
 9. Validation, lag monitoring and application compatibility tests.
 10. Manual failover and controlled recovery in either direction.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/IMPORT.md](docs/IMPORT.md), [docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md), [docs/UPSTREAM_COMPONENTS.md](docs/UPSTREAM_COMPONENTS.md), [docs/SYNC_MODEL.md](docs/SYNC_MODEL.md), [docs/DEVELOPMENT_ENVIRONMENT.md](docs/DEVELOPMENT_ENVIRONMENT.md) and [AGENTS.md](AGENTS.md) before changing core behavior.
+
+
+## Phase G1 failover readiness
+
+`drush dbtng:failover:check` evaluates whether the **data plane** is ready for a future controlled authority switch. It never changes Drupal's active connection, never promotes a standby and never claims to verify the external write fence.
+
+`READY` requires, at minimum:
+
+- runtime profile `full`;
+- healthy primary capture on the configured primary engine;
+- zero pending durable events;
+- read-only reconciliation `MATCH`;
+- standby integrity and manifest validation passing;
+- a current published generation whose manifest is `full`, `activatable=true`, `full_fidelity=true`, and matches the current engine direction/schema fingerprint.
+
+A CLEAN standby always returns `NOT_READY`. Even after `READY`, operators must stop the continuous worker, fence writes externally, re-check readiness under the fence, change pre-bootstrap deployment authority, verify/rebind capture on the new primary, and build a new standby. There is no automatic failover or automatic failback.
