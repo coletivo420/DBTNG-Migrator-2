@@ -284,6 +284,17 @@ services:
   dbtng_migrator.manifest_store:
     class: Drupal\dbtng_migrator\Manifest\StandbyManifestStore
 
+  dbtng_migrator.failover.transition_policy:
+    class: Drupal\dbtng_migrator\Failover\FailoverTransitionPolicy
+
+  dbtng_migrator.failover.readiness:
+    class: Drupal\dbtng_migrator\Failover\FailoverReadinessChecker
+    arguments:
+      - '@Drupal\dbtng_migrator\Contract\DatabaseTopologyResolverInterface'
+      - '@Drupal\dbtng_migrator\Contract\ChangeCaptureInterface'
+      - '@Drupal\dbtng_migrator\Contract\ReconciliationEngineInterface'
+      - '@Drupal\dbtng_migrator\Contract\StandbyManifestReaderInterface'
+
   dbtng_migrator.import.type_mapper:
     class: Drupal\dbtng_migrator\Schema\ImportTypeMapper
 
@@ -391,3 +402,9 @@ services:
 
   'Drupal\dbtng_migrator\Sync\SyncMonitoringService':
     alias: dbtng_migrator.sync.monitor
+
+  'Drupal\dbtng_migrator\Contract\StandbyManifestReaderInterface':
+    alias: dbtng_migrator.manifest_store
+
+  'Drupal\dbtng_migrator\Contract\FailoverReadinessCheckerInterface':
+    alias: dbtng_migrator.failover.readiness

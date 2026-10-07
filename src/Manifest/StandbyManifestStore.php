@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace Drupal\dbtng_migrator\Manifest;
 
 use Drupal\Core\Site\Settings;
+use Drupal\dbtng_migrator\Contract\StandbyManifestReaderInterface;
 use Drupal\dbtng_migrator\Exception\DbtngException;
 
 /**
  * Persists non-secret, versioned metadata for a validated standby.
  */
-final class StandbyManifestStore {
+final class StandbyManifestStore implements StandbyManifestReaderInterface {
 
   /**
    * Writes metadata atomically under private storage.
