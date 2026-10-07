@@ -56,7 +56,10 @@ exec_start="$(awk -F= '$1=="ExecStart" {print substr($0, index($0,"=")+1); exit}
 
 [[ -n "$user" && "$user" != "root" && "$user" != "0" ]] || die "Unit must run under a non-root User=."
 [[ -n "$group" ]] || die "Unit must declare Group=."
-safe_path='^/[A-Za-z0-9._/@+-]+
+safe_path='^/[A-Za-z0-9._/@+-]+$'
+[[ "$working_directory" =~ $safe_path ]] || die "WorkingDirectory must be a safe absolute path without whitespace/systemd specifiers."
+exec_binary="${exec_start%% *}"
+[[ "$exec_binary" =~ $safe_path ]] || die "ExecStart must begin with a safe absolute executable path."
 [[ "$exec_start" == *" dbtng:sync --watch"* ]] || die "ExecStart must run dbtng:sync --watch."
 [[ "$exec_start" != *"--once"* ]] || die "Continuous unit must not pass --once."
 [[ "$exec_start" != *"sudo"* ]] || die "Continuous unit must not invoke sudo."
@@ -67,31 +70,6 @@ if grep -Eq '^[[:space:]]*(EnvironmentFile|LoadCredential|LoadCredentialEncrypte
 fi
 if grep -Eiq '^[[:space:]]*Environment=.*(pass(word)?|token|secret|dsn|database_url)' "$unit"; then
   die "Unit contains a sensitive Environment= directive."
-fi
-if grep -Eiq '(mysql|mariadb|postgres(ql)?|https?)://[^[:space:]@]+:[^[:space:]@]+@' "$unit"; then
-  die "Unit appears to embed credentials in a URI/DSN."
-fi
-
-if command -v systemd-analyze >/dev/null 2>&1; then
-  systemd-analyze verify "$unit"
-elif ((require_systemd)); then
-  die "systemd-analyze is required but unavailable."
-else
-  printf 'WARNING: systemd-analyze unavailable; DBTNG static checks passed only.\n' >&2
-fi
-
-printf 'PASS: systemd unit safety/structure validation\n'
-
-[[ "$working_directory" =~ $safe_path ]] || die "WorkingDirectory must be a safe absolute path without whitespace/systemd specifiers."
-exec_binary="${exec_start%% *}"
-[[ "$exec_binary" =~ $safe_path ]] || die "ExecStart must begin with a safe absolute executable path."
-[[ "$exec_start" == *" dbtng:sync --watch"* ]] || die "ExecStart must run dbtng:sync --watch."
-[[ "$exec_start" != *"--once"* ]] || die "Continuous unit must not pass --once."
-[[ "$exec_start" != *"sudo"* ]] || die "Continuous unit must not invoke sudo."
-[[ "$exec_start" != *"/bin/sh -c"* && "$exec_start" != *"/bin/bash -c"* ]] || die "Continuous unit must not use a shell wrapper."
-
-if grep -Eiq '^[[:space:]]*(Environment|EnvironmentFile)=.*(pass(word)?|token|secret|dsn|database_url)' "$unit"; then
-  die "Unit contains a sensitive Environment=/EnvironmentFile= directive."
 fi
 if grep -Eiq '(mysql|mariadb|postgres(ql)?|https?)://[^[:space:]@]+:[^[:space:]@]+@' "$unit"; then
   die "Unit appears to embed credentials in a URI/DSN."
