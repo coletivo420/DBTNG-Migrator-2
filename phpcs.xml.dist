@@ -4,6 +4,7 @@
 
   <file>src</file>
   <file>tests</file>
+  <file>scripts/validate-project-structure.php</file>
 
   <arg name="extensions" value="php,module,inc,install,test,profile,theme"/>
 
