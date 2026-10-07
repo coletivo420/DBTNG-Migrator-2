@@ -25,8 +25,8 @@ pass() {
   printf 'PASS: %s\n' "$*"
 }
 
-script_dir="$(cd -- "$(dirname -- "\${BASH_SOURCE[0]}")" && pwd -P)"
-module_root="$(cd -- "\${script_dir}/.." && pwd -P)"
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+module_root="$(cd -- "${script_dir}/.." && pwd -P)"
 site_root=""
 drush=""
 mode="preflight"
@@ -35,10 +35,10 @@ uri="https://dbtng.toca.net.br/"
 
 while (($# > 0)); do
   case "$1" in
-    --site-root) site_root="\${2-}"; shift 2 ;;
-    --drush) drush="\${2-}"; shift 2 ;;
-    --mode) mode="\${2-}"; shift 2 ;;
-    --service) service="\${2-}"; shift 2 ;;
+    --site-root) site_root="${2-}"; shift 2 ;;
+    --drush) drush="${2-}"; shift 2 ;;
+    --mode) mode="${2-}"; shift 2 ;;
+    --service) service="${2-}"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) die "Unknown option: $1" ;;
   esac
@@ -50,7 +50,7 @@ done
 [[ -z "$(git -C "$module_root" status --porcelain)" ]] || die "Module checkout is not clean."
 
 if [[ -z "$drush" ]]; then
-  drush="\${site_root}/vendor/bin/drush"
+  drush="${site_root}/vendor/bin/drush"
 fi
 [[ "$drush" == /* && -f "$drush" && -x "$drush" && ! -L "$drush" ]] || die "Drush executable is unavailable or unsafe: $drush"
 
@@ -119,7 +119,7 @@ service_user="$(systemctl show "$service" -p User --value)"
 [[ "$service_user" == "$(id -un)" ]] || die "Service user does not match the domain owner running this validation."
 
 systemctl cat "$service" >"$tmpdir/unit.service"
-"\${module_root}/scripts/validate-systemd-unit.sh" "$tmpdir/unit.service" >/dev/null
+"${module_root}/scripts/validate-systemd-unit.sh" "$tmpdir/unit.service" >/dev/null
 pass "installed systemd unit is non-root and passes DBTNG validation"
 
 if journalctl -u "$service" -n 200 --no-pager >"$tmpdir/journal.txt" 2>/dev/null; then

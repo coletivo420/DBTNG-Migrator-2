@@ -17,7 +17,7 @@ die() {
 }
 
 require_systemd=0
-if [[ "\${1-}" == "--require-systemd-analyze" ]]; then
+if [[ "${1-}" == "--require-systemd-analyze" ]]; then
   require_systemd=1
   shift
 fi
