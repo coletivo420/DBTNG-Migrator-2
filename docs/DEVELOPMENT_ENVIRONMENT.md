@@ -349,6 +349,6 @@ Validated 2026-10-07 on Drupal 11.4.8 / PHP 8.4.26 / Drush 13.8.0 / MariaDB 11.8
 - CLEAN MariaDB -> SQLite: cache rows remained absent while `queue`, `key_value`, and the unknown no-PK fixture table were preserved; reconciliation returned `MATCH`. A CLEAN-to-FULL profile change blocked sync with exit 1 and left capture events pending until a FULL rebuild.
 - A full-profile comparison after `cache:rebuild` detected cache drift without row-trigger events, consistent with the documented MySQL TRUNCATE boundary. The final standby was therefore rebuilt as CLEAN and is not promotable as FULL.
 
-The post-merge `cache:rebuild` check found that Drupal's `cachetags` table does not match the `cache_*` naming pattern. It was explicitly added to CLEAN's schema-only policy because it is cache invalidation state; the corrective change is tracked separately and the final standby is rebuilt/reconciled after it lands.
+The post-merge `cache:rebuild` check found that Drupal's `cachetags` table does not match the `cache_*` naming pattern. PR #12 explicitly added it to CLEAN's schema-only policy because it is cache invalidation state. After deploying the fix, the standby was rebuilt CLEAN, captured events were drained, and reconciliation returned `MATCH` with zero pending events.
 
 Final state: MariaDB primary, SQLite CLEAN standby, capture healthy with zero pending events, reconciliation `MATCH`, Drupal database connected, and public HTTPS returned HTTP 200. The final CLEAN projection is explicitly **NOT FULL-EQUIVALENT / NOT FOR PROMOTION**.
