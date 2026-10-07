@@ -38,7 +38,9 @@ Import adds one extra invariant: destination emptiness is checked before writes 
 
 ## Catch-up
 
-A rebuild records a durable source sequence/position, copies from the stable read view, then applies changes after that position until it reaches current head before promotion.
+Phase E1 establishes a durable set of primary-side dirty events but does not yet implement catch-up/application.
+
+A future catch-up worker must not treat the auto-increment capture ID as commit order. It will consume currently visible events, apply their authoritative current-state effect idempotently, and acknowledge the exact IDs only after the standby transaction is durable. Snapshot/capture handoff semantics must be proven before the pre-CDC publication fence is removed.
 
 ## Lag
 
@@ -52,3 +54,12 @@ Phase C import pins a dedicated source connection for the duration of a stable r
 # Rebuild consistency before CDC
 
 Rebuild uses an engine-native consistent read snapshot and bounded row transfer. Before publication, DBTNG takes a short source write fence and compares the candidate schema and streamed row-content digests against the source. Equal row counts are not sufficient. The fence is held only for final comparison and atomic publication, not for the full build. It proves parity at publication time; it does not prevent later drift after the fence is released. See ADR-021.
+
+
+## Phase E1 transaction coupling
+
+MariaDB/MySQL capture triggers write to an InnoDB log table in the originating transaction. SQLite capture triggers write to a table in the same SQLite transaction. A source rollback therefore rolls back its capture record as well.
+
+This is stronger than request-end hooks and avoids a window where Drupal commits application data but crashes before recording the change.
+
+TRUNCATE and DDL remain explicit exceptions to row-trigger coverage and must surface through operational discipline, schema fingerprinting and reconciliation until a dedicated mechanism is implemented.

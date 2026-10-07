@@ -5,6 +5,28 @@ services:
   dbtng_migrator.failure_injector:
     class: Drupal\dbtng_migrator\Failure\NullFailureInjector
 
+  dbtng_migrator.capture.identity_planner:
+    class: Drupal\dbtng_migrator\ChangeCapture\ChangeIdentityPlanner
+
+  dbtng_migrator.capture.mysql:
+    class: Drupal\dbtng_migrator\ChangeCapture\MysqlFamilyChangeCaptureAdapter
+    arguments:
+      - '@dbtng_migrator.capture.identity_planner'
+
+  dbtng_migrator.capture.sqlite:
+    class: Drupal\dbtng_migrator\ChangeCapture\SqliteChangeCaptureAdapter
+    arguments:
+      - '@dbtng_migrator.capture.identity_planner'
+
+  dbtng_migrator.capture.manager:
+    class: Drupal\dbtng_migrator\ChangeCapture\ChangeCaptureManager
+    arguments:
+      - '@dbtng_migrator.topology_resolver'
+      - '@dbtng_migrator.schema.manager'
+      - '@dbtng_migrator.capture.mysql'
+      - '@dbtng_migrator.capture.sqlite'
+      - '@dbtng_migrator.operation_lock'
+
   dbtng_migrator.snapshot.candidate_factory:
     class: Drupal\dbtng_migrator\Snapshot\CandidateFactory
     arguments:
@@ -260,3 +282,6 @@ services:
 
   'Drupal\dbtng_migrator\Contract\PortabilityAnalyzerInterface':
     alias: dbtng_migrator.portability_analyzer
+
+  'Drupal\dbtng_migrator\Contract\ChangeCaptureInterface':
+    alias: dbtng_migrator.capture.manager

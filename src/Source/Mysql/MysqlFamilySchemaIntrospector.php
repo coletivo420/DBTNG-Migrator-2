@@ -17,6 +17,7 @@ use Drupal\dbtng_migrator\Model\IndexColumnDefinition;
 use Drupal\dbtng_migrator\Model\IndexDefinition;
 use Drupal\dbtng_migrator\Model\TableDefinition;
 use Drupal\dbtng_migrator\Schema\PhysicalTypeMapper;
+use Drupal\dbtng_migrator\ChangeCapture\CaptureSchema;
 
 /**
  * Inventories only physical objects belonging to the configured Drupal schema. */
@@ -47,10 +48,11 @@ final class MysqlFamilySchemaIntrospector implements SourceSchemaIntrospectorInt
     $objects = [];
     foreach ($tableRows as $row) {
       $name = (string) $row['TABLE_NAME'];
-      // Namespaces are reserved for isolated DBTNG candidates and retained
-      // generations. They are not application tables during normal operation.
+      // Namespaces are reserved for DBTNG runtime state and isolated
+      // generations. They are not Drupal application tables.
       if (($onlyTables === NULL && preg_match('/^dbtng[cp][0-9a-f]{8}_/', $name) === 1)
-        || $name === 'dbtng_migrator_snapshot_state') {
+        || $name === 'dbtng_migrator_snapshot_state'
+        || $name === CaptureSchema::LOG_TABLE) {
         continue;
       }
       if ($onlyTables !== NULL && !in_array($name, $onlyTables, TRUE)) {
@@ -130,7 +132,11 @@ final class MysqlFamilySchemaIntrospector implements SourceSchemaIntrospectorInt
     }
 
     foreach ($this->rows($connection, 'SELECT TRIGGER_NAME, EVENT_OBJECT_TABLE FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = :schema ORDER BY TRIGGER_NAME', [':schema' => $schema]) as $row) {
-      $objects[] = new DatabaseObjectDefinition('trigger', (string) $row['TRIGGER_NAME'], (string) $row['EVENT_OBJECT_TABLE']);
+      $triggerName = (string) $row['TRIGGER_NAME'];
+      if (str_starts_with($triggerName, CaptureSchema::TRIGGER_PREFIX)) {
+        continue;
+      }
+      $objects[] = new DatabaseObjectDefinition('trigger', $triggerName, (string) $row['EVENT_OBJECT_TABLE']);
     }
     foreach ($this->rows($connection, 'SELECT ROUTINE_NAME, ROUTINE_TYPE FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = :schema ORDER BY ROUTINE_NAME', [':schema' => $schema]) as $row) {
       $objects[] = new DatabaseObjectDefinition(strtolower((string) $row['ROUTINE_TYPE']), (string) $row['ROUTINE_NAME']);
