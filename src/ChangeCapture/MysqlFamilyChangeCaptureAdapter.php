@@ -9,6 +9,7 @@ use Drupal\Core\Database\Statement\FetchAs;
 use Drupal\dbtng_migrator\Contract\ChangeCaptureAdapterInterface;
 use Drupal\dbtng_migrator\Exception\DbtngException;
 use Drupal\dbtng_migrator\Model\CaptureIdentityDefinition;
+use Drupal\dbtng_migrator\Model\ChangeBacklogStatus;
 use Drupal\dbtng_migrator\Model\ChangeCaptureStatus;
 use Drupal\dbtng_migrator\Model\ChangeIdentityKind;
 use Drupal\dbtng_migrator\Model\ChangeOperation;
@@ -70,7 +71,7 @@ final class MysqlFamilyChangeCaptureAdapter implements ChangeCaptureAdapterInter
         $tableDirty++;
       }
     }
-    [$pending, $oldest, $newest] = $installed ? $this->backlog($connection) : [0, NULL, NULL];
+    $backlog = $installed ? $this->backlog($connection) : new ChangeBacklogStatus(0);
     return new ChangeCaptureStatus(
       DatabaseEngine::MysqlFamily,
       $installed,
@@ -78,14 +79,15 @@ final class MysqlFamilyChangeCaptureAdapter implements ChangeCaptureAdapterInter
       $trackedTables,
       $expectedTriggers,
       $triggerCount,
-      $pending,
+      $backlog->pendingEvents,
       $tableDirty,
-      $oldest,
-      $newest,
+      $backlog->oldestEventId,
+      $backlog->newestEventId,
       [
         'TRUNCATE and DDL are not captured by row triggers; schema drift requires reconciliation/rebuild.',
         'Event IDs identify durable records but are not a transaction commit-order watermark.',
       ],
+      $backlog->oldestPendingAgeSeconds,
     );
   }
 
@@ -213,26 +215,25 @@ final class MysqlFamilyChangeCaptureAdapter implements ChangeCaptureAdapterInter
     return $names;
   }
 
-  /**
-   * Returns pending count and visible event-ID bounds.
-   *
-   * @return array{0: int, 1: int|null, 2: int|null}
-   *   Pending count, oldest ID and newest ID.
-   */
-  private function backlog(Connection $connection): array {
+  public function backlog(Connection $connection): ChangeBacklogStatus {
+    if (!$this->logTableExists($connection)) {
+      return new ChangeBacklogStatus(0);
+    }
     $statement = $connection->query(
-      'SELECT COUNT(*) AS pending, MIN(event_id) AS oldest, MAX(event_id) AS newest FROM '
+      'SELECT COUNT(*) AS pending, MIN(event_id) AS oldest, MAX(event_id) AS newest, '
+      . 'TIMESTAMPDIFF(SECOND, MIN(captured_at), CURRENT_TIMESTAMP(6)) AS oldest_age FROM '
       . SqlIdentifier::quote($connection, CaptureSchema::LOG_TABLE),
     );
     $row = $statement?->fetchAssoc();
     if (!is_array($row)) {
-      return [0, NULL, NULL];
+      return new ChangeBacklogStatus(0);
     }
-    return [
+    return new ChangeBacklogStatus(
       (int) $row['pending'],
       $row['oldest'] === NULL ? NULL : (int) $row['oldest'],
       $row['newest'] === NULL ? NULL : (int) $row['newest'],
-    ];
+      $row['oldest_age'] === NULL ? NULL : max(0, (int) $row['oldest_age']),
+    );
   }
 
   /**

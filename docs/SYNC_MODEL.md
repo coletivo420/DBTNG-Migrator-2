@@ -117,3 +117,13 @@ The primary can continue accepting writes while a one-shot batch runs. Events co
 - standby application: implemented as bounded one-shot sync.
 - continuous worker/watch and lag SLA: not implemented or claimed.
 - first capture installation still requires a subsequent validated rebuild/import baseline before synchronization can be claimed.
+
+## Phase F continuous execution
+
+`dbtng:sync` remains one-shot by default. `--watch` explicitly starts the continuous worker.
+
+The worker uses lightweight backlog reads while idle, performs a full capture-health check periodically, drains `MORE_PENDING` batches without an idle sleep, and uses capped exponential backoff for typed transient failures. Operator-actionable baseline/schema/profile problems enter `BLOCKED` and retry at a slower configured interval.
+
+The observable `oldest_pending_age_seconds` field means the age of the oldest durable event still pending on the primary. It is useful for operations but is **not** an exact cross-engine replication-lag clock or SLA.
+
+A private atomic state file records heartbeat and worker state. It does not replace the capture log, standby manifest or database reconciliation as correctness evidence.

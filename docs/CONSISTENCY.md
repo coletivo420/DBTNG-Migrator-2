@@ -63,3 +63,9 @@ MariaDB/MySQL capture triggers write to an InnoDB log table in the originating t
 This is stronger than request-end hooks and avoids a window where Drupal commits application data but crashes before recording the change.
 
 TRUNCATE and DDL remain explicit exceptions to row-trigger coverage and must surface through operational discipline, schema fingerprinting and reconciliation until a dedicated mechanism is implemented.
+
+## Continuous worker consistency
+
+Phase F does not change E2 ordering guarantees. Each worker iteration delegates to `syncOnce()`, which commits standby effects before acknowledging exact primary event IDs. A process crash after standby commit but before acknowledgement remains replayable and idempotent.
+
+Retry/backoff changes scheduling only; it does not change acknowledgement or transaction semantics. systemd restart after an abrupt process death is therefore expected to resume from the durable primary backlog.

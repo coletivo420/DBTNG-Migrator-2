@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\dbtng_migrator\Contract;
 
 use Drupal\Core\Database\Connection;
+use Drupal\dbtng_migrator\Model\ChangeBacklogStatus;
 use Drupal\dbtng_migrator\Model\ChangeCaptureStatus;
 use Drupal\dbtng_migrator\Model\DatabaseEngine;
 use Drupal\dbtng_migrator\Model\DatabaseInventory;
@@ -21,6 +22,8 @@ interface ChangeCaptureAdapterInterface {
   public function uninstall(Connection $connection): void;
 
   public function status(Connection $connection, DatabaseInventory $inventory): ChangeCaptureStatus;
+
+  public function backlog(Connection $connection): ChangeBacklogStatus;
 
   /**
    * Returns currently committed, unacknowledged events.

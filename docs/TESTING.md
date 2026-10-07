@@ -222,3 +222,50 @@ Also prove/document:
 - role switching with installed capture is not yet an automatic operation;
 - no standby data is changed by E1;
 - backlog survives process exit/restart.
+
+## Phase F code-level coverage
+
+Automated tests cover capped exponential backoff, worker config validation, private atomic state round-trips, corrupt state handling, singleton lifetime locking, idle polling, immediate multi-batch draining, transient backoff progression and systemd-independent health classification.
+
+### Canonical-host integration gate
+
+The Phase F PR must remain unmerged until `dbtng.toca.net.br` validates:
+
+- rendered systemd unit with `systemd-analyze verify`;
+- non-root service user and secret-free unit/journal;
+- enable/start/stop/restart;
+- duplicate watch rejection;
+- continuous create/update/delete/CLEAN propagation without manual `sync --once`;
+- standby outage -> BACKOFF -> automatic recovery;
+- 1,200+ events drained in bounded batches;
+- graceful SIGTERM;
+- real SIGKILL + systemd restart with zero loss/corruption;
+- stale-heartbeat classification;
+- capture-unhealthy, schema-drift and profile-mismatch blocking;
+- final capture healthy, pending zero and reconciliation `MATCH`.
+
+### Phase F.1 tooling gate
+
+CI runs `scripts/test-phase-f-tooling.sh` on Ubuntu and requires `systemd-analyze verify` against a safely rendered temporary unit. Negative tests prove that the renderer refuses root and that the validator rejects credential-bearing environment assignments and `--once` in the continuous service.
+
+After Composer install, `composer validate-structure` checks:
+
+- every internal service class in `dbtng_migrator.services.yml` autoloads;
+- internal aliases/references target declared services;
+- every installed config key is represented by `dbtng_migrator.schema.yml`;
+- all Drush command classes autoload and expose one unique `AsCommand` name;
+- the Phase F command set includes `dbtng:sync`, `dbtng:sync:status`, `dbtng:doctor` and `dbtng:capture:status`.
+
+The read-only canonical-host checker is:
+
+```bash
+scripts/validate-phase-f-host.sh \
+  --site-root /home/bdtgn/apps/dbtng-site \
+  --mode preflight
+
+scripts/validate-phase-f-host.sh \
+  --site-root /home/bdtgn/apps/dbtng-site \
+  --mode service
+```
+
+The first mode is safe before unit installation. The second requires the worker already ACTIVE+ENABLED and validates unit structure, worker/capture health, pending zero, reconciliation and HTTP without mutating service/database state.

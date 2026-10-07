@@ -35,3 +35,19 @@ E2 does not perform authority transitions. Fence writes to the old primary, run 
 # Rebuild activation boundary
 
 Only a validated `full` generation may be considered for a controlled authority switch. A `clean` SQLite generation is explicitly standby-only. Reconciliation reports current drift read-only and does not make a standby safe to promote by itself. There is no automatic failover or failback.
+
+## Worker handling during authority transitions
+
+Phase F does not automate failover. Before any future controlled promotion:
+
+1. stop the continuous sync supervisor;
+2. fence primary writes;
+3. drain pending events with the existing sync primitive;
+4. require reconciliation `MATCH`;
+5. require a FULL promotable standby;
+6. switch deployment authority;
+7. explicitly verify/rebind capture on the new primary;
+8. rebuild the new standby;
+9. restart the continuous worker.
+
+A CLEAN standby remains not promotable.

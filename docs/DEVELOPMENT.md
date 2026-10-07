@@ -62,3 +62,9 @@ Use only `dbtng.toca.net.br` as the canonical Virtualmin integration hostname. A
 # Phase D local workflow
 
 Use `drush dbtng:reconcile` for a read-only status report and `drush dbtng:rebuild --profile=full|clean` to construct and publish a validated standby candidate. Both share the operation lock with import and restore. Rebuild runs for most of its duration while the primary accepts writes, then uses a short final write fence. It can abort if the final schema or streamed row-content digest differs from the candidate.
+
+## Continuous sync configuration
+
+Phase F adds a dedicated `sync` mapping to `dbtng_migrator.settings`. Keep polling and backoff values finite and positive. `heartbeat_stale_seconds` must exceed every normal worker sleep/backoff interval so a healthy sleeping worker is not falsely reported stale.
+
+Use injected clock/sleeper abstractions in worker tests; do not add real multi-second sleeps to PHPUnit.

@@ -61,6 +61,8 @@ final class DoctorCommand extends Command {
     $output->writeln(sprintf('  sqlite3: %s', $this->findExecutable(['sqlite3']) ?? 'MISSING'));
     $output->writeln(sprintf('  gzip: %s', $this->findExecutable(['gzip']) ?? 'MISSING'));
     $output->writeln(sprintf('  SQLite3::backup(): %s', class_exists(\SQLite3::class) ? 'AVAILABLE' : 'UNAVAILABLE'));
+    $signalSupport = extension_loaded('pcntl') && defined('SIGTERM') && defined('SIGINT');
+    $output->writeln(sprintf('  PCNTL signals: %s', $signalSupport ? 'AVAILABLE' : 'UNAVAILABLE'));
     return Command::SUCCESS;
   }
 

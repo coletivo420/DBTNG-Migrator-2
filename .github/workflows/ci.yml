@@ -28,6 +28,14 @@ jobs:
           tools: composer:v2
       - run: composer validate --strict --no-check-publish
       - run: composer install --no-interaction --prefer-dist
+      - run: composer validate-structure
       - run: composer phpcs
       - run: composer phpstan
       - run: composer test
+
+  phase-f-tooling:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate Phase F host-gate tooling
+        run: bash scripts/test-phase-f-tooling.sh

@@ -52,3 +52,11 @@ Native restore is a same-engine standby operation. `dbtng:restore` validates inp
 # Candidate rebuild recovery
 
 `dbtng:rebuild` never clears the current standby first. An interrupted SQLite build leaves a `.partial` generation that can be removed after confirming no DBTNG lock is held. A MySQL-family build may leave tables in the reserved candidate namespace; the next locked rebuild removes stale candidates. The active canonical tables and `dbtng_migrator_snapshot_state` change in one atomic rename statement. Reconcile the standby after a crash before using it.
+
+## Continuous worker recovery
+
+The watch worker does not own authoritative state. If the process exits or is killed, durable capture events remain on the primary unless they were acknowledged after standby commit.
+
+On restart, the worker resumes from the pending event set. A crash after standby commit but before acknowledgement intentionally replays already-applied effects; E2 idempotence makes that safe.
+
+A stale/corrupt/missing worker status file affects observability only and must never cause event deletion or standby promotion.

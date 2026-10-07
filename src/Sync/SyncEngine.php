@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace Drupal\dbtng_migrator\Sync;
 
 use Drupal\Core\Database\Connection;
+use Drupal\Core\Database\DatabaseExceptionWrapper;
 use Drupal\dbtng_migrator\Connection\DatabaseTopologyResolver;
 use Drupal\dbtng_migrator\Contract\ChangeCaptureInterface;
 use Drupal\dbtng_migrator\Contract\FailureInjectorInterface;
 use Drupal\dbtng_migrator\Contract\StandbyChangeApplierInterface;
 use Drupal\dbtng_migrator\Contract\SyncEngineInterface;
 use Drupal\dbtng_migrator\Exception\DbtngException;
+use Drupal\dbtng_migrator\Exception\SyncBlockedException;
+use Drupal\dbtng_migrator\Exception\SyncRebuildRequiredException;
+use Drupal\dbtng_migrator\Exception\SyncTransientException;
 use Drupal\dbtng_migrator\Manifest\StandbyManifestStore;
 use Drupal\dbtng_migrator\Model\DatabaseEngine;
 use Drupal\dbtng_migrator\Model\DatabaseInventory;
@@ -65,14 +69,14 @@ final class SyncEngine implements SyncEngineInterface {
       $this->assertBaseline($topology->primary->engine, $topology->standby->engine, $topology->profile, $inventory, $manifest);
       $this->assertStandbySchema($inventory, $standbyInventory);
       if ($inventory->objects !== []) {
-        throw new DbtngException('Sync blocked: primary contains unsupported schema objects; rebuild required.');
+        throw new SyncRebuildRequiredException('Sync blocked: primary contains unsupported schema objects; rebuild required.');
       }
       if ($standbyInventory->objects !== []) {
-        throw new DbtngException('Sync blocked: standby contains unsupported schema objects; rebuild required.');
+        throw new SyncRebuildRequiredException('Sync blocked: standby contains unsupported schema objects; rebuild required.');
       }
       $captureStatus = $this->capture->status();
       if (!$captureStatus->healthy || $captureStatus->engine !== $topology->primary->engine) {
-        throw new DbtngException('Sync blocked: primary change capture is missing or unhealthy.');
+        throw new SyncBlockedException('Sync blocked: primary change capture is missing or unhealthy.');
       }
       $events = $this->capture->pending($limit);
       if ($events === []) {
@@ -131,7 +135,7 @@ final class SyncEngine implements SyncEngineInterface {
       // and before exact acknowledgement, leaving events pending on mismatch.
       $finalInventory = $this->introspector->inspect($topology->primary->connection);
       if (!hash_equals($manifest['schema_fingerprint'], $this->fingerprints->calculate($finalInventory))) {
-        throw new DbtngException('Sync committed standby effects but schema changed; exact events remain pending and rebuild is required.');
+        throw new SyncRebuildRequiredException('Sync committed standby effects but schema changed; exact events remain pending and rebuild is required.');
       }
       $batchUuid = bin2hex(random_bytes(16));
       $manifestChanges = [
@@ -157,6 +161,9 @@ final class SyncEngine implements SyncEngineInterface {
         $pendingAfter, $started, $memoryStart, $result, $topology->primary->label(), $topology->standby->label(), $topology->profile->value,
       );
     }
+    catch (DatabaseExceptionWrapper | \PDOException $exception) {
+      throw new SyncTransientException('Sync encountered a transient database failure; unacknowledged events remain pending.', 0, $exception);
+    }
     catch (DbtngException $exception) {
       throw $exception;
     }
@@ -176,7 +183,7 @@ final class SyncEngine implements SyncEngineInterface {
   public function status(): SyncStatus {
     try {
       $status = $this->capture->status();
-      return new SyncStatus($status->pendingEvents, $status->healthy, $status->oldestEventId, $status->newestEventId);
+      return new SyncStatus($status->pendingEvents, $status->healthy, $status->oldestEventId, $status->newestEventId, $status->oldestPendingAgeSeconds);
     }
     catch (\Throwable) {
       return new SyncStatus(0, FALSE);
@@ -192,7 +199,7 @@ final class SyncEngine implements SyncEngineInterface {
     $generation = NULL;
     if ($engine === DatabaseEngine::Sqlite) {
       if ($path === NULL || !is_link($path)) {
-        throw new DbtngException('Sync blocked: SQLite standby is not a published generation; rebuild required.');
+        throw new SyncRebuildRequiredException('Sync blocked: SQLite standby is not a published generation; rebuild required.');
       }
       $real = realpath($path);
       $generation = $real === FALSE ? NULL : basename(dirname($real));
@@ -206,11 +213,11 @@ final class SyncEngine implements SyncEngineInterface {
       }
     }
     if (!is_string($generation) || preg_match('/^[a-f0-9]{32}$/D', $generation) !== 1) {
-      throw new DbtngException('Sync blocked: standby has no valid published generation; rebuild required.');
+      throw new SyncRebuildRequiredException('Sync blocked: standby has no valid published generation; rebuild required.');
     }
     $manifest = $this->manifests->readCurrent($identity, $generation);
     if ($manifest === NULL || !is_string($manifest['schema_fingerprint'] ?? NULL) || !is_string($manifest['profile'] ?? NULL)) {
-      throw new DbtngException('Sync blocked: standby manifest is missing or invalid; rebuild required.');
+      throw new SyncRebuildRequiredException('Sync blocked: standby manifest is missing or invalid; rebuild required.');
     }
     return $manifest;
   }
@@ -224,14 +231,14 @@ final class SyncEngine implements SyncEngineInterface {
     if (($manifest['profile'] ?? NULL) !== $profile->value
       || ($manifest['primary_engine'] ?? NULL) !== $primary->value
       || ($manifest['standby_engine'] ?? NULL) !== $standby->value) {
-      throw new DbtngException('Sync blocked: standby profile/topology differs from its baseline; rebuild required.');
+      throw new SyncRebuildRequiredException('Sync blocked: standby profile/topology differs from its baseline; rebuild required.');
     }
     if (!hash_equals((string) $manifest['schema_fingerprint'], $this->fingerprints->calculate($inventory))) {
-      throw new DbtngException('Sync blocked: primary schema differs from its baseline; rebuild required.');
+      throw new SyncRebuildRequiredException('Sync blocked: primary schema differs from its baseline; rebuild required.');
     }
     if ($profile === ReplicationProfile::Full
       && (($manifest['activatable'] ?? FALSE) !== TRUE || ($manifest['full_fidelity'] ?? FALSE) !== TRUE)) {
-      throw new DbtngException('Sync blocked: standby baseline is not full-fidelity and activatable; rebuild required.');
+      throw new SyncRebuildRequiredException('Sync blocked: standby baseline is not full-fidelity and activatable; rebuild required.');
     }
   }
 
@@ -249,7 +256,7 @@ final class SyncEngine implements SyncEngineInterface {
     sort($sourceNames, SORT_STRING);
     sort($destinationNames, SORT_STRING);
     if ($sourceNames !== $destinationNames) {
-      throw new DbtngException('Sync blocked: standby table set differs from its baseline; rebuild required.');
+      throw new SyncRebuildRequiredException('Sync blocked: standby table set differs from its baseline; rebuild required.');
     }
     foreach ($sourceNames as $name) {
       $source = $sourceTables[$name];
@@ -266,7 +273,7 @@ final class SyncEngine implements SyncEngineInterface {
       ], $destination->columns);
       if ($sourceColumns !== $destinationColumns || $source->primaryKey !== $destination->primaryKey
         || $this->indexSignature($source) !== $this->indexSignature($destination)) {
-        throw new DbtngException(sprintf('Sync blocked: standby schema differs for "%s"; rebuild required.', $name));
+        throw new SyncRebuildRequiredException(sprintf('Sync blocked: standby schema differs for "%s"; rebuild required.', $name));
       }
     }
   }
@@ -294,17 +301,17 @@ final class SyncEngine implements SyncEngineInterface {
         return $table;
       }
     }
-    throw new DbtngException('Sync blocked: dirty event table is absent from physical inventory; rebuild required.');
+    throw new SyncRebuildRequiredException('Sync blocked: dirty event table is absent from physical inventory; rebuild required.');
   }
 
   private function assertTableReconciliationSafe(DatabaseInventory $inventory, TableDefinition $table): void {
     foreach ($inventory->tables as $candidate) {
       if ($candidate->name === $table->name && $candidate->foreignKeys !== []) {
-        throw new DbtngException(sprintf('Table-dirty reconciliation of "%s" is blocked by foreign keys; rebuild required.', $table->name));
+        throw new SyncRebuildRequiredException(sprintf('Table-dirty reconciliation of "%s" is blocked by foreign keys; rebuild required.', $table->name));
       }
       foreach ($candidate->foreignKeys as $foreignKey) {
         if ($foreignKey->referencedTable === $table->name) {
-          throw new DbtngException(sprintf('Table-dirty reconciliation of "%s" is blocked by foreign keys; rebuild required.', $table->name));
+          throw new SyncRebuildRequiredException(sprintf('Table-dirty reconciliation of "%s" is blocked by foreign keys; rebuild required.', $table->name));
         }
       }
     }

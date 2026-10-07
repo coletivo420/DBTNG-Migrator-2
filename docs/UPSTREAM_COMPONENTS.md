@@ -174,3 +174,9 @@ Phase E1 uses documented MariaDB/MySQL and SQLite trigger semantics directly rat
 The implementation records dirty logical identity, not raw SQL and not full row images. No substantial upstream code was copied for the E1 trigger adapters.
 
 Before extending this layer with binlog CDC or third-party replication libraries, record the exact upstream project/version here and compare its transaction, privilege and recovery guarantees against the trigger baseline.
+
+## 8. Symfony Console signals and systemd supervision
+
+Phase F uses Symfony Console's supported `SignalableCommandInterface` model for graceful SIGINT/SIGTERM handling and keeps supervision outside Drupal through systemd. The worker loop itself remains DBTNG-owned and delegates every mutation batch to the existing `syncOnce()` primitive.
+
+No substantial Symfony/systemd implementation code is copied. The reference unit is project configuration, not vendored upstream code.

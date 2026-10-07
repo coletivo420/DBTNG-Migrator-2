@@ -30,6 +30,7 @@
   "scripts": {
     "check": [
       "@validate-project",
+      "@validate-structure",
       "@phpcs",
       "@phpstan",
       "@test"
@@ -38,7 +39,8 @@
     "phpcs": "phpcs --standard=phpcs.xml.dist src tests",
     "phpcbf": "phpcbf --standard=phpcs.xml.dist src tests",
     "phpstan": "phpstan analyse --configuration=phpstan.neon.dist --no-progress",
-    "test": "phpunit --configuration=phpunit.xml.dist"
+    "test": "phpunit --configuration=phpunit.xml.dist",
+    "validate-structure": "php scripts/validate-project-structure.php"
   },
   "config": {
     "sort-packages": true,

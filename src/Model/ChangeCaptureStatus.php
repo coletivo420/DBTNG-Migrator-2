@@ -27,6 +27,7 @@ final readonly class ChangeCaptureStatus {
     public ?int $oldestEventId = NULL,
     public ?int $newestEventId = NULL,
     public array $warnings = [],
+    public ?int $oldestPendingAgeSeconds = NULL,
   ) {}
 
 }

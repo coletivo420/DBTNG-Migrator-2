@@ -46,10 +46,19 @@ This file is normative guidance for humans and AI coding agents. Architectural c
 40. **Capture infrastructure belongs only to the selected primary role.** A future role transition must fence and rebind capture deliberately; never infer that triggers on an old primary remain authoritative.
 41. **Installing capture does not establish standby parity.** After first activation, create/rebuild a validated baseline before any continuous-sync claim.
 42. **Never acknowledge a captured event before downstream durability.** Sync commits standby effects first, then acknowledges only the exact event IDs in that batch; never use a maximum-ID watermark.
-43. **Sync is one bounded batch per invocation.** Do not add polling loops, watch mode, or a daemon before the continuous worker phase.
+43. **`SyncEngine::syncOnce()` remains the only standby-application primitive.** Phase F watch mode may loop around it but must never implement a second synchronization engine.
 44. **A sync batch is current-state application, not SQL replay.** Collapse dirty keys, read each current primary row explicitly, and apply it idempotently to the standby.
 45. **Profile/schema/topology drift blocks sync and requires rebuild.** Do not perform incremental DDL or infer that a clean standby is promotable.
 46. **CLEAN treats Drupal `cachetags` as schema-only alongside `cache_*`.** Cache tag invalidation state is transient and must not create a copied-table parity failure when cache tables are intentionally empty.
+47. **Continuous watch is explicit, never default.** `dbtng:sync` without `--watch` stays bounded one-shot; `--once` and `--watch` are mutually exclusive.
+48. **The worker lifetime lock is separate from `OperationLock`.** Hold the worker lock for the watch process lifetime, but acquire the shared operation lock only inside each `syncOnce()` batch so planned rebuild/import/restore can proceed after stopping the worker.
+49. **Worker state is observability, not authority.** Private `sync-status.json` may be discarded/rebuilt; topology, capture log, standby manifest and database contents remain authoritative.
+50. **Oldest pending age is not exact replication lag.** It is the wall-clock age of the oldest currently pending durable event and must be labeled accordingly.
+51. **Do not classify retry behavior by parsing exception messages.** Use typed transient/blocked/rebuild-required exceptions.
+52. **systemd supervision must run as the Virtualmin domain user, never root, and unit files must contain no credentials.**
+53. **Host-gate scripts must remain read-only.** Rendering/validation tooling may inspect Git, Drush, HTTP, systemd and journals but must not install services, mutate database permissions/content, acknowledge events or change authority.
+54. **Rendered systemd units are validated artifacts.** Reject unresolved placeholders, root execution, shell/sudo wrappers, `--once`, credential-bearing environment directives and embedded credential URIs before installation.
+55. **CI must validate internal service wiring/config schema/Drush command metadata.** Do not defer missing service classes, aliases or command metadata to the first live `drush cr`.
 
 ## Current product boundary
 
@@ -58,7 +67,7 @@ Initial topologies:
 - MariaDB/MySQL primary -> SQLite standby (`full` or opt-in `clean`).
 - SQLite primary -> MariaDB/MySQL standby (`full`).
 
-Both directions are implemented for logical import, candidate rebuild/reconciliation, and bounded one-shot sync. Continuous workers/watch mode, automatic role transitions, and browser downloads remain future work.
+Both directions are implemented for logical import, candidate rebuild/reconciliation, and bounded one-shot sync. Phase F implements the continuous worker in code; live systemd/process validation is still required before declaring it operationally complete. Automatic role transitions and browser downloads remain future work.
 
 PostgreSQL and other engines are future adapters.
 
@@ -167,3 +176,15 @@ Do not claim production readiness until the beta/stable criteria in `docs/TESTIN
 - MySQL/MariaDB and SQLite trigger writes must participate in the same source transaction as the application mutation.
 - Event IDs may contain gaps and may become visible out of allocation order on MySQL-family engines; do not derive a scalar applied watermark from `MAX(event_id)`.
 - Until the live development host validates E1, document the feature as code/CI validated only, not production-ready.
+
+
+## Phase F continuous-worker checks
+
+- `dbtng:sync --watch` must delegate every database-changing batch to the existing `SyncEngine::syncOnce()`.
+- Idle polling must use lightweight backlog reads; full trigger/inventory health checks are periodic, not every second.
+- More-pending batches drain immediately without an idle sleep.
+- Retry backoff is capped and resets after a successful batch.
+- `SIGTERM`/`SIGINT` request a graceful stop; `SIGKILL` remains recoverable through exact-ACK/idempotent replay guarantees.
+- Runtime state and worker lock live under owner-private Drupal private storage with directory mode 0700 and files mode 0600.
+- `dbtng:sync:status` is independent of systemd and must classify stale heartbeat even if the service manager is unavailable.
+- Planned schema/deployment/role-transition maintenance should stop the external worker first; shared per-batch operation locking remains the second safety layer.

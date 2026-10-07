@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\dbtng_migrator\Contract;
 
+use Drupal\dbtng_migrator\Model\ChangeBacklogStatus;
 use Drupal\dbtng_migrator\Model\ChangeCaptureStatus;
 
 /**
@@ -18,6 +19,8 @@ interface ChangeCaptureInterface {
   public function isInstalled(): bool;
 
   public function status(): ChangeCaptureStatus;
+
+  public function backlog(): ChangeBacklogStatus;
 
   /**
    * Returns currently committed, unacknowledged capture events.
