@@ -46,7 +46,7 @@ final class SyncStatusCommand extends Command {
       else {
         $output->writeln('<info>DBTNG Continuous Sync</info>');
         $output->writeln('Health: ' . $report->health->value);
-        $output->writeln('Worker state: ' . ($report->workerState?->value ?? 'UNKNOWN'));
+        $output->writeln('Worker state: ' . ($report->workerState === NULL ? 'UNKNOWN' : $report->workerState->value));
         $output->writeln('Worker PID: ' . ($report->workerPid ?? 'unknown'));
         $output->writeln('Heartbeat age: ' . ($report->heartbeatAgeSeconds === NULL ? 'unknown' : $report->heartbeatAgeSeconds . 's'));
         $output->writeln('Primary: ' . $report->primaryEngine);

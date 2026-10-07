@@ -48,6 +48,9 @@ final class SyncMonitoringService {
       default => SyncHealth::Healthy,
     };
 
+    $consecutiveFailures = $worker === NULL ? 0 : $worker->consecutiveFailures;
+    $currentBackoff = $worker === NULL ? 0 : $worker->currentBackoffSeconds;
+
     return new SyncMonitoringReport(
       $health,
       $worker?->state,
@@ -60,8 +63,8 @@ final class SyncMonitoringService {
       $topology->standby->label(),
       $topology->profile->value,
       $worker?->lastSuccessAt,
-      $worker?->consecutiveFailures ?? 0,
-      $worker?->currentBackoffSeconds ?? 0,
+      $consecutiveFailures,
+      $currentBackoff,
       $worker?->lastErrorClass,
     );
   }

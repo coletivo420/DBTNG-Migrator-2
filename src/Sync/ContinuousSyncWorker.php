@@ -282,6 +282,11 @@ final class ContinuousSyncWorker {
     return $this->clock->now()->format(DATE_ATOM);
   }
 
+  /**
+   * Records a state transition once and narrows the previous state.
+   *
+   * @param-out \Drupal\dbtng_migrator\Model\SyncWorkerState $previous
+   */
   private function logTransition(?SyncWorkerState &$previous, SyncWorkerState $current): void {
     if ($previous === $current) {
       return;

@@ -68,9 +68,9 @@ final class ContinuousSyncWorkerTest extends TestCase {
       ->method('syncOnce')
       ->with(500)
       ->willReturnOnConsecutiveCalls(
-        $this->result(SyncResultStatus::MorePending, 700),
-        $this->result(SyncResultStatus::MorePending, 200),
-        $this->result(SyncResultStatus::CaughtUp, 0),
+        $this->batchResult(SyncResultStatus::MorePending, 700),
+        $this->batchResult(SyncResultStatus::MorePending, 200),
+        $this->batchResult(SyncResultStatus::CaughtUp, 0),
       );
     $capture = $this->captureMock([
       new ChangeBacklogStatus(1200, 1, 1200, 30),
@@ -169,7 +169,7 @@ final class ContinuousSyncWorkerTest extends TestCase {
     );
   }
 
-  private function result(SyncResultStatus $status, int $pending): SyncBatchResult {
+  private function batchResult(SyncResultStatus $status, int $pending): SyncBatchResult {
     return new SyncBatchResult(500, 50, 0, 40, 10, 0, 0, 500, $pending, 10, 1024, $status, 'MariaDB', 'SQLite', 'full');
   }
 
