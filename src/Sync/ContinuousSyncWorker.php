@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\dbtng_migrator\Sync;
 
+use Drupal\Core\Database\DatabaseExceptionWrapper;
 use Drupal\dbtng_migrator\Contract\ChangeCaptureInterface;
 use Drupal\dbtng_migrator\Contract\ClockInterface;
 use Drupal\dbtng_migrator\Contract\DatabaseTopologyResolverInterface;
@@ -152,7 +153,7 @@ final class ContinuousSyncWorker {
             $this->logTransition($lastLoggedState, SyncWorkerState::Idle);
             $this->sleeper->sleep($this->configuration->pollSeconds);
           }
-          catch (OperationLockedException | SyncTransientException $exception) {
+          catch (DatabaseExceptionWrapper | \PDOException | OperationLockedException | SyncTransientException $exception) {
             $consecutiveFailures++;
             $delay = $this->backoff->delay($consecutiveFailures, $this->configuration);
             $this->persist(

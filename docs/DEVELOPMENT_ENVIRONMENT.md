@@ -367,3 +367,7 @@ The Phase F implementation can be reviewed and CI-tested without mutating the ho
 8. leave MariaDB primary / SQLite CLEAN standby, capture healthy, worker active, pending zero, reconciliation `MATCH`.
 
 Do not use `virtualmin list-domains --multiline` during this work.
+
+### Phase F signal prerequisite
+
+Before installing the reference systemd unit, confirm the CLI PHP used by Drush has PCNTL signal support. `dbtng:doctor` reports `PCNTL signals: AVAILABLE` when both SIGTERM and SIGINT handling are available. Without PCNTL, do not claim graceful Phase F shutdown; process-crash safety still depends on E2 idempotence/exact ACK, but the host gate remains incomplete.

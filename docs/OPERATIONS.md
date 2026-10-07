@@ -124,3 +124,7 @@ sync:
 For planned rebuild/import/restore/schema deployment or role transition, stop the external worker first, perform/validate the operation, then start the worker again. The per-batch DBTNG operation lock remains a second safety layer.
 
 A systemd reference unit is provided at `docs/examples/dbtng-migrator-sync.service.example`. Render its placeholders for the actual Virtualmin user/group, Drupal root and Drush binary; never embed database credentials.
+
+### Signal prerequisite
+
+Graceful `systemctl stop` behavior requires the CLI PHP running Drush to expose PCNTL/SIGTERM/SIGINT. Check `drush dbtng:doctor` before enabling the continuous worker. If signal support is unavailable, keep the service disabled until the CLI PHP environment is corrected.
