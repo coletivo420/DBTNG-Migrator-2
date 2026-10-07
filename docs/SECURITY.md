@@ -42,3 +42,11 @@ A database standby is not a complete Drupal disaster-recovery backup. Uploaded/p
 ## Administrative output and credentials
 
 Do not use `virtualmin list-domains --multiline` for routine automation or diagnosis: this output may contain database passwords. Use specific Virtualmin queries that omit secret fields. Never emit credentials in terminal logs, reports, CI or chat. Temporary native-client credential files must be private and removed in guaranteed cleanup paths; SQLite files, safety backups and import manifests stay outside the public document root with restrictive permissions.
+
+## Continuous worker security
+
+The worker lock and `sync-status.json` belong under owner-private Drupal private storage. Runtime directory permissions are 0700 or stricter and files are 0600.
+
+The recommended systemd service runs as the Virtualmin domain user with `UMask=0077`, `NoNewPrivileges=true` and no embedded credentials. The unit must not execute Drush as root or place database passwords in `Environment=` directives.
+
+Worker logs contain aggregate batch counts/state transitions only; they must not emit captured row values or credentials.

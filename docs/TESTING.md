@@ -222,3 +222,24 @@ Also prove/document:
 - role switching with installed capture is not yet an automatic operation;
 - no standby data is changed by E1;
 - backlog survives process exit/restart.
+
+## Phase F code-level coverage
+
+Automated tests cover capped exponential backoff, worker config validation, private atomic state round-trips, corrupt state handling, singleton lifetime locking, idle polling, immediate multi-batch draining, transient backoff progression and systemd-independent health classification.
+
+### Canonical-host integration gate
+
+The Phase F PR must remain unmerged until `dbtng.toca.net.br` validates:
+
+- rendered systemd unit with `systemd-analyze verify`;
+- non-root service user and secret-free unit/journal;
+- enable/start/stop/restart;
+- duplicate watch rejection;
+- continuous create/update/delete/CLEAN propagation without manual `sync --once`;
+- standby outage -> BACKOFF -> automatic recovery;
+- 1,200+ events drained in bounded batches;
+- graceful SIGTERM;
+- real SIGKILL + systemd restart with zero loss/corruption;
+- stale-heartbeat classification;
+- capture-unhealthy, schema-drift and profile-mismatch blocking;
+- final capture healthy, pending zero and reconciliation `MATCH`.

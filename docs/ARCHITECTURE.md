@@ -193,3 +193,28 @@ The runtime resolves primary and standby roles before any operation. Destination
 Logical import builds destination DDL from physical inventory and transfers rows with cursor-based bounded batches. MariaDB/MySQL uses a dedicated repeatable-read consistent snapshot; SQLite uses a read transaction. The destination is marked initialized only after schema, row-count, integrity and engine-specific checks succeed. SQLite publication uses a validated candidate file. MariaDB non-unique indexes that exceed InnoDB key limits are shortened with an explicit portability warning; unique indexes that cannot be preserved block strict import.
 
 The `clean` profile is limited to MariaDB/MySQL primary -> SQLite standby. The full profile remains required for any standby intended for promotion. E2 sync requires a matching published manifest and schema baseline; profile/topology/schema drift returns rebuild-required. Capture does not cover TRUNCATE or DDL, and automatic role rebinding remains future work.
+
+## Continuous worker layer (Phase F)
+
+The continuous worker is deliberately a wrapper around the existing bounded sync primitive:
+
+```text
+systemd / operator
+        |
+        v
+dbtng:sync --watch
+        |
+        v
+ContinuousSyncWorker
+        |
+        +--> lightweight backlog observation
+        +--> periodic capture health check
+        +--> retry/backoff + heartbeat
+        |
+        v
+SyncEngine::syncOnce()
+```
+
+There is no second change-application engine. The worker lifetime lock prevents duplicate watch processes, while the existing `OperationLock` is acquired only inside each batch. This keeps rebuild/import/restore serialization intact without holding a global database-operation lock for the worker lifetime.
+
+Worker state is private, secret-free operational telemetry and is never an authority source.

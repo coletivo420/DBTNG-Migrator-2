@@ -39,6 +39,7 @@ final class SyncMonitoringService {
       $worker === NULL => SyncHealth::Stale,
       $worker->state === SyncWorkerState::Error => SyncHealth::Error,
       $worker->state === SyncWorkerState::Blocked => SyncHealth::Blocked,
+      in_array($worker->state, [SyncWorkerState::Stopping, SyncWorkerState::Stopped], TRUE) => SyncHealth::Stale,
       $heartbeatAge !== NULL && $heartbeatAge > $this->configuration->heartbeatStaleSeconds => SyncHealth::Stale,
       $worker->state === SyncWorkerState::Backoff => SyncHealth::Backoff,
       $capture->pendingEvents > 0

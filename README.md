@@ -128,6 +128,7 @@ Reserved for a future, more aggressive SQLite standby projection that can exclud
 5. **ChangeCapture** — Phase E1 installs engine-specific row triggers on the selected primary and records durable dirty-table/dirty-key events without replaying raw SQL.
 6. **PolicyEngine** — decides how standby data is represented.
 7. **SyncEngine** — applies one bounded batch of captured dirty identities by re-reading current primary state, committing standby effects, then acknowledging exact event IDs.
+8. **ContinuousSyncWorker** — Phase F wraps the same `syncOnce()` primitive with bounded polling, typed retry/backoff, heartbeat/state persistence and a singleton lifetime lock; systemd is the recommended external supervisor.
 
 Import and rebuild share schema introspection, portability analysis, bounded-memory transfer and validation. Native backup/restore remains same-engine.
 
@@ -143,7 +144,7 @@ Codex is authorized to provision and maintain that development installation with
 
 ## Project status
 
-Phases A through D and E1 are merged and live-validated. Phase E2 adds `drush dbtng:sync --once`, a single bounded, idempotent catch-up batch for either primary/standby engine direction. It does not run continuously: operators invoke it again to drain further backlog. Automatic failover, automatic role rebinding, CDC for TRUNCATE/DDL, and browser downloads remain out of scope.
+Phases A through E2 are merged and live-validated. Phase F code adds `drush dbtng:sync --watch` and `dbtng:sync:status` around the proven one-shot primitive, with private heartbeat/state, singleton locking and capped retry/backoff. Host-level systemd installation and process/outage validation remain the Phase F integration gate before merge. Automatic failover, automatic role rebinding, CDC for TRUNCATE/DDL, and browser downloads remain out of scope.
 
 ## Requirements
 
@@ -160,8 +161,8 @@ Phases A through D and E1 are merged and live-validated. Phase E2 adds `drush db
 2. Runtime topology resolver, doctor/preflight, MariaDB/MySQL and SQLite physical inventory, destination state inspection, portability analysis, and same-engine native backups. (complete)
 3. Controlled standby clearing, native restore and logical import/bootstrap in both directions. (complete)
 4. Candidate-based rebuild, publication and profile-aware reconciliation. (complete)
-5. Durable primary-side change capture and bounded one-shot standby application. (Phase E1/E2)
-6. Continuous synchronization worker and operational lag monitoring. (Phase F)
+5. Durable primary-side change capture and bounded one-shot standby application. (complete)
+6. Continuous synchronization worker and operational backlog-age monitoring. (Phase F implementation in PR; live systemd gate pending)
 7. Optional SQLite-standby clean projection.
 8. Entity-aware revision projection.
 9. Validation, lag monitoring and application compatibility tests.

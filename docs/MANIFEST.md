@@ -23,3 +23,9 @@ Generation manifests record:
 Credentials, passwords, full DSNs and application secrets are forbidden. Manifest changes require format-version compatibility tests.
 
 E2 sync requires the standby's published manifest to match the configured primary engine, standby engine, profile and source schema fingerprint. A mismatch is `REBUILD_REQUIRED`; sync does not rewrite the manifest as a substitute for rebuild. After durable sync application, the manifest records the last successful batch metadata. For SQLite, incremental writes invalidate the original whole-file `artifact_sha256` (stored as null); the generation ID and logical schema baseline remain unchanged. One-shot batches do not store a scalar applied event watermark.
+
+## Worker state is separate from the standby manifest
+
+Phase F's private `sync-status.json` is ephemeral operational telemetry. It is not a snapshot manifest, generation pointer, capture watermark or authority record. Deleting/corrupting it may make monitoring report `STALE`, but it must not change standby contents or acknowledge events.
+
+Published generation manifests remain the baseline contract used by `SyncEngine` to reject profile/topology/schema drift.

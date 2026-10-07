@@ -90,3 +90,37 @@ drush dbtng:sync --once --limit=500
 Sync blocks on unhealthy capture, profile/topology/schema mismatch, or incompatible standby schema and requires a rebuild. No polling/watch mode, daemon, continuous lag SLA, or automatic role transition exists. MySQL-family TRUNCATE and DDL remain outside row-trigger capture.
 
 One-shot sync can return `MORE_PENDING`; invoke it again to process the next bounded batch. Its final `pending` value is observed on the primary before later writes and is not a lag SLA. A successful batch updates the private manifest after standby commit and before ACK. SQLite's original full-file generation checksum is invalidated by incremental writes; integrity and logical reconciliation remain the post-sync checks.
+
+## Continuous sync worker
+
+Manual modes:
+
+```bash
+drush dbtng:sync
+drush dbtng:sync --once
+drush dbtng:sync --watch
+drush dbtng:sync:status
+drush dbtng:sync:status --format=json
+```
+
+No option means one bounded batch, preserving E2 behavior. `--watch` is explicit and mutually exclusive with `--once`.
+
+Default worker settings:
+
+```yaml
+sync:
+  batch_events: 500
+  poll_seconds: 1
+  health_check_seconds: 30
+  backoff_initial_seconds: 1
+  backoff_max_seconds: 30
+  blocked_retry_seconds: 60
+  heartbeat_stale_seconds: 120
+  lag_warning_seconds: 60
+```
+
+`lag_warning_seconds` compares against the **oldest pending event age**, not an exact replication-lag SLA.
+
+For planned rebuild/import/restore/schema deployment or role transition, stop the external worker first, perform/validate the operation, then start the worker again. The per-batch DBTNG operation lock remains a second safety layer.
+
+A systemd reference unit is provided at `docs/examples/dbtng-migrator-sync.service.example`. Render its placeholders for the actual Virtualmin user/group, Drupal root and Drush binary; never embed database credentials.

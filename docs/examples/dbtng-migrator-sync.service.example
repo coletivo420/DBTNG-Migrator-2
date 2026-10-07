@@ -1,0 +1,31 @@
+# DBTNG Migrator continuous sync — reference unit
+#
+# Render placeholders after discovering the canonical Virtualmin site's real
+# user/group, Composer project root and Drush binary. Do not place credentials
+# or database DSNs in this unit.
+#
+# Validate the rendered unit with:
+#   systemd-analyze verify /etc/systemd/system/dbtng-migrator-sync.service
+
+[Unit]
+Description=DBTNG Migrator continuous standby sync
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__DBTNG_USER__
+Group=__DBTNG_GROUP__
+WorkingDirectory=__DRUPAL_PROJECT_ROOT__
+ExecStart=__DRUSH_BINARY__ --uri=https://dbtng.toca.net.br/ dbtng:sync --watch
+Restart=on-failure
+RestartSec=5s
+KillSignal=SIGTERM
+TimeoutStopSec=60s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

@@ -352,3 +352,18 @@ Validated 2026-10-07 on Drupal 11.4.8 / PHP 8.4.26 / Drush 13.8.0 / MariaDB 11.8
 The post-merge `cache:rebuild` check found that Drupal's `cachetags` table does not match the `cache_*` naming pattern. PR #12 explicitly added it to CLEAN's schema-only policy because it is cache invalidation state. After deploying the fix, the standby was rebuilt CLEAN, captured events were drained, and reconciliation returned `MATCH` with zero pending events.
 
 Final state: MariaDB primary, SQLite CLEAN standby, capture healthy with zero pending events, reconciliation `MATCH`, Drupal database connected, and public HTTPS returned HTTP 200. The final CLEAN projection is explicitly **NOT FULL-EQUIVALENT / NOT FOR PROMOTION**.
+
+## Phase F host-only validation
+
+The Phase F implementation can be reviewed and CI-tested without mutating the host. The remaining gate is intentionally server-only:
+
+1. render `docs/examples/dbtng-migrator-sync.service.example` with the discovered `bdtgn` user/group, actual Drupal project root and project Drush binary;
+2. verify it with `systemd-analyze verify`;
+3. install it as a service dedicated only to `dbtng.toca.net.br`;
+4. run it as the domain user, never root;
+5. validate enable/start/stop/restart, SIGTERM and real SIGKILL recovery;
+6. validate standby outage/backoff/automatic drain and 1,200+ event batches;
+7. inspect only sanitized journal excerpts for secret leakage;
+8. leave MariaDB primary / SQLite CLEAN standby, capture healthy, worker active, pending zero, reconciliation `MATCH`.
+
+Do not use `virtualmin list-domains --multiline` during this work.

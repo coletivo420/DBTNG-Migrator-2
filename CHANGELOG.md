@@ -5,6 +5,8 @@ All notable changes to DBTNG Migrator 2 will be documented here.
 ## Unreleased
 
 ### Added
+- Phase F continuous sync worker around the existing `syncOnce()` primitive, including `dbtng:sync --watch`, `dbtng:sync:status`, singleton worker locking, private atomic heartbeat/state, capped exponential backoff and oldest-pending-event age metrics.
+- Versioned systemd service example for supervising the non-root watch worker without embedding credentials.
 - Durable primary-side change-capture foundation for MariaDB/MySQL and SQLite using transaction-coupled row triggers and a reserved internal event log.
 - `dbtng:capture:install` and `dbtng:capture:status` Drush commands; capture events use primary-key JSON when safely addressable and table-dirty fallback otherwise.
 - `dbtng:sync --once` applies one bounded batch from current primary state to the standby, uses idempotent upsert/delete or table-dirty reconciliation, commits the standby before acknowledging exact event IDs, and leaves failures replayable.
@@ -29,6 +31,8 @@ All notable changes to DBTNG Migrator 2 will be documented here.
 - Upstream component/provenance policy covering Backup and Migrate, SQLite Backup and Drush SQL tooling.
 
 ### Changed
+- Continuous worker failures are classified by exception type rather than message parsing; baseline/profile/schema blocks remain operator-actionable while database/operation contention uses bounded retry.
+- `dbtng:sync` remains one-shot by default; continuous behavior requires explicit `--watch`.
 - Capture event IDs are durable identifiers rather than commit-order watermarks; sync acknowledges exact applied event IDs only after standby commit.
 - Sync is bounded and one-shot only. Continuous worker/watch, automatic failover, and row-level coverage for TRUNCATE/DDL remain unimplemented.
 - The 2026-10-07 canonical-host E2 validation passed both FULL directions, CLEAN policy, exact-ACK replay, standby outage recovery and a 1,200-event bounded backlog. Final SQLite standby is CLEAN, MATCH and explicitly not full-equivalent/promotable.
