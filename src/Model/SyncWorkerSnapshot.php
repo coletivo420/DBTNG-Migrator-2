@@ -46,6 +46,8 @@ final readonly class SyncWorkerSnapshot {
   }
 
   /**
+   * Returns JSON-safe worker state.
+   *
    * @return array<string, int|string|null>
    *   JSON-safe worker state.
    */

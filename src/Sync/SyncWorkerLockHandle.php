@@ -10,11 +10,15 @@ namespace Drupal\dbtng_migrator\Sync;
 final class SyncWorkerLockHandle {
 
   /**
+   * Active worker-lock file descriptor.
+   *
    * @var resource|null
    */
   private $stream;
 
   /**
+   * Holds the locked worker file descriptor.
+   *
    * @param resource $stream
    *   Locked worker file descriptor.
    */

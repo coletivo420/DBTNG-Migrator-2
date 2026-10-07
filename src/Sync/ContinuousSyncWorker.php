@@ -152,7 +152,7 @@ final class ContinuousSyncWorker {
             $this->logTransition($lastLoggedState, SyncWorkerState::Idle);
             $this->sleeper->sleep($this->configuration->pollSeconds);
           }
-          catch (OperationLockedException|SyncTransientException $exception) {
+          catch (OperationLockedException | SyncTransientException $exception) {
             $consecutiveFailures++;
             $delay = $this->backoff->delay($consecutiveFailures, $this->configuration);
             $this->persist(

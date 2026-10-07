@@ -69,7 +69,7 @@ final class SyncWorkerStateStore {
       $data = json_decode($json, TRUE, 32, JSON_THROW_ON_ERROR);
       return is_array($data) ? SyncWorkerSnapshot::fromArray($data) : NULL;
     }
-    catch (\JsonException|\InvalidArgumentException|\ValueError) {
+    catch (\JsonException | \InvalidArgumentException | \ValueError) {
       return NULL;
     }
   }

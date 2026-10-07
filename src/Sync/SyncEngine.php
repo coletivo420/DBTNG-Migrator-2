@@ -161,7 +161,7 @@ final class SyncEngine implements SyncEngineInterface {
         $pendingAfter, $started, $memoryStart, $result, $topology->primary->label(), $topology->standby->label(), $topology->profile->value,
       );
     }
-    catch (DatabaseExceptionWrapper|\PDOException $exception) {
+    catch (DatabaseExceptionWrapper | \PDOException $exception) {
       throw new SyncTransientException('Sync encountered a transient database failure; unacknowledged events remain pending.', 0, $exception);
     }
     catch (DbtngException $exception) {

@@ -8,4 +8,3 @@ namespace Drupal\dbtng_migrator\Exception;
  * Signals baseline/schema/profile drift that requires a fresh rebuild.
  */
 final class SyncRebuildRequiredException extends SyncBlockedException {}
-

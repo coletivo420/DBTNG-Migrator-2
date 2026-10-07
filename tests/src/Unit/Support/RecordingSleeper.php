@@ -12,6 +12,8 @@ use Drupal\dbtng_migrator\Contract\SleeperInterface;
 final class RecordingSleeper implements SleeperInterface {
 
   /**
+   * Recorded sleep intervals.
+   *
    * @var list<int>
    */
   public array $delays = [];

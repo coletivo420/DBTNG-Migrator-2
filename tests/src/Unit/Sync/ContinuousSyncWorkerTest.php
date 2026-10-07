@@ -106,7 +106,10 @@ final class ContinuousSyncWorkerTest extends TestCase {
   }
 
   /**
+   * Creates a healthy capture mock with deterministic backlog samples.
+   *
    * @param list<ChangeBacklogStatus> $backlogs
+   *   Backlog values returned in call order.
    */
   private function captureMock(array $backlogs): ChangeCaptureInterface {
     $capture = $this->createMock(ChangeCaptureInterface::class);
@@ -125,7 +128,10 @@ final class ContinuousSyncWorkerTest extends TestCase {
   }
 
   /**
+   * Builds a worker with real private state/locking and deterministic time.
+   *
    * @return array{ContinuousSyncWorker, SyncWorkerStateStore, RecordingSleeper}
+   *   Worker, state store and recording sleeper.
    */
   private function worker(SyncEngineInterface $sync, ChangeCaptureInterface $capture): array {
     $clock = new MutableClock(new \DateTimeImmutable('2026-10-07T12:00:00+00:00'));

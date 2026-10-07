@@ -27,6 +27,8 @@ final readonly class SyncMonitoringReport {
   ) {}
 
   /**
+   * Returns machine-readable secret-free status.
+   *
    * @return array<string, bool|int|string|null>
    *   Machine-readable secret-free status.
    */

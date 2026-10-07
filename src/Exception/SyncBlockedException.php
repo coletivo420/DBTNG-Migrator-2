@@ -8,4 +8,3 @@ namespace Drupal\dbtng_migrator\Exception;
  * Signals an operator-actionable condition that blocks incremental sync.
  */
 class SyncBlockedException extends DbtngException {}
-
