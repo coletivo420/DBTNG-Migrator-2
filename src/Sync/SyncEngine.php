@@ -133,6 +133,20 @@ final class SyncEngine implements SyncEngineInterface {
       if (!hash_equals($manifest['schema_fingerprint'], $this->fingerprints->calculate($finalInventory))) {
         throw new DbtngException('Sync committed standby effects but schema changed; exact events remain pending and rebuild is required.');
       }
+      $batchUuid = bin2hex(random_bytes(16));
+      $manifestChanges = [
+        'last_sync_batch_uuid' => $batchUuid,
+        'last_sync_at' => gmdate(DATE_ATOM),
+        'last_sync_event_count' => count($batch->eventIds),
+        'last_sync_profile' => $topology->profile->value,
+        'standby_data_modified_by_sync' => TRUE,
+      ];
+      if ($topology->standby->engine === DatabaseEngine::Sqlite) {
+        // The immutable rebuild artifact hash describes the generation at
+        // publication. Once sync mutates it, that checksum is no longer valid.
+        $manifestChanges['artifact_sha256'] = NULL;
+      }
+      $this->manifests->updateVersionMetadata($topology->standby->identity, (string) $manifest['generation_id'], $manifestChanges);
       $this->failures->hit('after_standby_commit_before_ack', ['event_count' => count($batch->eventIds)]);
       $this->capture->acknowledge($batch->eventIds);
       $pendingAfter = $this->capture->status()->pendingEvents;

@@ -73,3 +73,4 @@ Capture infrastructure belongs to a physical database while it is primary. Autom
 - A failed ACK may cause idempotent replay; this is expected and safe. Sync remains one-shot, and no continuous lag SLA is claimed.
 - A table-dirty event is reconciled by streaming the current table only when replacement is safe; otherwise sync blocks and requires rebuild.
 - Profile, topology, or schema baseline drift blocks sync and requires a rebuild rather than incremental DDL.
+- After a successful standby commit, operational manifest metadata is updated before ACK. Incremental SQLite changes invalidate the original whole-file artifact checksum; schema/profile/generation identity remains the baseline, while integrity and logical reconciliation validate the live database.

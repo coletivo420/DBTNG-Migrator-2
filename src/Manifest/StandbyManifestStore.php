@@ -127,6 +127,25 @@ final class StandbyManifestStore {
   }
 
   /**
+   * Updates non-secret operational metadata for a published generation.
+   *
+   * Logical sync mutates the published standby after its initial artifact was
+   * built. This keeps profile/schema identity stable while recording that the
+   * original file checksum no longer describes the current SQLite state.
+   *
+   * @param array<string, mixed> $changes
+   *   Secret-free fields to merge into the generation metadata.
+   */
+  public function updateVersionMetadata(string $physicalIdentity, string $generationId, array $changes): void {
+    $metadata = $this->readVersion($physicalIdentity, $generationId);
+    if ($metadata === NULL) {
+      throw new DbtngException('Cannot update metadata for a missing standby generation.');
+    }
+    unset($metadata['manifest_version'], $metadata['destination_id'], $metadata['generation_id']);
+    $this->writeVersion($physicalIdentity, $generationId, array_replace($metadata, $changes));
+  }
+
+  /**
    * Reads one validated immutable version by generation identifier.
    *
    * @return array<string, mixed>|null
