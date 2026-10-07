@@ -27,6 +27,40 @@ services:
       - '@dbtng_migrator.capture.sqlite'
       - '@dbtng_migrator.operation_lock'
 
+  dbtng_migrator.sync.reducer:
+    class: Drupal\dbtng_migrator\Sync\DirtyEventReducer
+    arguments:
+      - '@Drupal\dbtng_migrator\Policy\CleanReplicationPolicy'
+
+  dbtng_migrator.sync.row_reader:
+    class: Drupal\dbtng_migrator\Sync\PrimaryRowReader
+
+  dbtng_migrator.sync.mysql_applier:
+    class: Drupal\dbtng_migrator\Sync\MysqlStandbyChangeApplier
+
+  dbtng_migrator.sync.sqlite_applier:
+    class: Drupal\dbtng_migrator\Sync\SqliteStandbyChangeApplier
+
+  dbtng_migrator.sync.table_reconciler:
+    class: Drupal\dbtng_migrator\Sync\TableReconciler
+
+  dbtng_migrator.sync.engine:
+    class: Drupal\dbtng_migrator\Sync\SyncEngine
+    arguments:
+      - '@dbtng_migrator.topology_resolver'
+      - '@dbtng_migrator.schema.manager'
+      - '@Drupal\dbtng_migrator\Contract\ChangeCaptureInterface'
+      - '@dbtng_migrator.sync.reducer'
+      - '@dbtng_migrator.sync.row_reader'
+      - '@dbtng_migrator.sync.mysql_applier'
+      - '@dbtng_migrator.sync.sqlite_applier'
+      - '@dbtng_migrator.sync.table_reconciler'
+      - '@Drupal\dbtng_migrator\Policy\CleanReplicationPolicy'
+      - '@dbtng_migrator.manifest_store'
+      - '@dbtng_migrator.schema.fingerprint'
+      - '@dbtng_migrator.operation_lock'
+      - '@dbtng_migrator.failure_injector'
+
   dbtng_migrator.snapshot.candidate_factory:
     class: Drupal\dbtng_migrator\Snapshot\CandidateFactory
     arguments:
@@ -285,3 +319,6 @@ services:
 
   'Drupal\dbtng_migrator\Contract\ChangeCaptureInterface':
     alias: dbtng_migrator.capture.manager
+
+  'Drupal\dbtng_migrator\Contract\SyncEngineInterface':
+    alias: dbtng_migrator.sync.engine

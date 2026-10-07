@@ -292,9 +292,9 @@ All four role/engine backup combinations succeeded. MariaDB `.sql.gz` outputs pa
 
 `drush status`, `core:requirements --severity=2`, and `cache:rebuild` passed on the default MariaDB install. HTTPS returned 200 with TLS verification result 0. The runtime selector was restored to `DBTNG_DEV_PRIMARY=mysql` after the inverse-role tests. The private root `/home/bdtgn/private` is mode 0700; SQLite and backup storage are under `/home/bdtgn/private/dbtng/`, outside webroot. The settings include and database credentials remain private; no packages were installed and no services were reloaded or restarted during Phase B validation.
 
-Logical import, restore, clearing, and continuous synchronization remain unimplemented. The SQLite and MariaDB Drupal installs are independent fixtures, not a synchronized pair.
+Historical Phase B note: at that point logical import, restore, clearing and synchronization were not implemented; the two databases were independent installs. Phase C later implemented import/restore/clear, Phase D added candidate rebuild, and E1/E2 added capture plus bounded one-shot sync.
 
-The first environment bootstrap installed Drupal 11.4.8 and Drush 13.8.0.0 and enabled DBTNG Migrator 2. MariaDB and SQLite were each used as the selected Drupal primary for an independent install/boot smoke test. That SQLite install is not an imported or synchronized standby; do not present it as one. Logical import, native restore and continuous synchronization remain separate integration tests when those features are implemented.
+The first environment bootstrap installed Drupal 11.4.8 and Drush 13.8.0.0 and enabled DBTNG Migrator 2. At that time MariaDB and SQLite were independent installs. Later Phase C/D/E sessions performed real imports, rebuilds and capture validation; current integration results are recorded in the corresponding phase sections rather than inferred from the bootstrap smoke test.
 
 ## 15. Reference documentation
 
@@ -329,10 +329,10 @@ The canonical development host is `dbtng.toca.net.br`. The expected final role s
 Phase D uses immutable SQLite generations under `/home/bdtgn/private/dbtng/sqlite/generations`, with the configured SQLite path acting as an atomic symlink. MariaDB candidates use reserved staged-table and retained-generation prefixes within the dedicated schema. Do not delete these artifacts manually while a rebuild is active.
 
 
-## Phase E1 capture validation gate
+## Phase E1 live capture result
 
-Phase E1 can be developed and unit-tested without changing the live host, but it is not considered operationally complete until the canonical host validates trigger privileges and transaction coupling for both primary engines.
+Phase E1 was validated on the canonical host for both primary engines. INSERT/UPDATE/DELETE commits, rollback coupling, PK changes, no-PK table fallback, backlog persistence, inventory/rebuild exclusion and SQLite WAL passed. TRUNCATE and DDL do not emit row events and require reconciliation/rebuild. PR #10 was merged after the live gate and CI/CodeQL passed.
 
-When host work resumes, use `dbtng:capture:install` only on the selected primary, establish a fresh validated rebuild/import baseline afterwards, and leave the final environment as MariaDB primary / SQLite standby unless a test explicitly requires the opposite role.
+Use `dbtng:capture:install` only on the selected primary and establish a fresh validated FULL rebuild baseline before sync tests. The site was returned to MariaDB primary / SQLite standby after E1 validation. E2 sync is one-shot and bounded; it does not provide a continuous worker or zero-lag guarantee.
 
 Do not use `virtualmin list-domains --multiline` during this validation.

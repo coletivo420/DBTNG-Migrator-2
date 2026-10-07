@@ -21,3 +21,5 @@ Generation manifests record:
 - checksum where an artifact checksum is meaningful (for example SQLite file snapshots).
 
 Credentials, passwords, full DSNs and application secrets are forbidden. Manifest changes require format-version compatibility tests.
+
+E2 sync requires the standby's published manifest to match the configured primary engine, standby engine, profile and source schema fingerprint. A mismatch is `REBUILD_REQUIRED`; sync does not rewrite the manifest as a substitute for rebuild. One-shot batches do not store a scalar applied event watermark.
