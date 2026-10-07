@@ -32,6 +32,17 @@ final readonly class SyncWorkerSnapshot {
     if ($pid < 1 || $pendingEvents < 0 || $consecutiveFailures < 0 || $currentBackoffSeconds < 0) {
       throw new \InvalidArgumentException('Worker state numeric fields must be non-negative and PID must be positive.');
     }
+    foreach ([$startedAt, $heartbeatAt, $lastSuccessAt, $lastErrorAt] as $timestamp) {
+      if ($timestamp === NULL) {
+        continue;
+      }
+      try {
+        new \DateTimeImmutable($timestamp);
+      }
+      catch (\Exception $exception) {
+        throw new \InvalidArgumentException('Worker state contains an invalid timestamp.', 0, $exception);
+      }
+    }
   }
 
   /**

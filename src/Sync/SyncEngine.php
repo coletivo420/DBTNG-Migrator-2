@@ -311,7 +311,7 @@ final class SyncEngine implements SyncEngineInterface {
       }
       foreach ($candidate->foreignKeys as $foreignKey) {
         if ($foreignKey->referencedTable === $table->name) {
-          throw new DbtngException(sprintf('Table-dirty reconciliation of "%s" is blocked by foreign keys; rebuild required.', $table->name));
+          throw new SyncRebuildRequiredException(sprintf('Table-dirty reconciliation of "%s" is blocked by foreign keys; rebuild required.', $table->name));
         }
       }
     }
