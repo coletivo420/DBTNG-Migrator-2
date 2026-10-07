@@ -15,6 +15,8 @@ use PHPUnit\Framework\TestCase;
 final class FailoverTransitionPolicyTest extends TestCase {
 
   /**
+   * Provides every allowed adjacent transition in order.
+   *
    * @return list<array{FailoverStage, FailoverStage}>
    *   Allowed adjacent transitions.
    */

@@ -188,6 +188,8 @@ final class FailoverReadinessCheckerTest extends TestCase {
   }
 
   /**
+   * Builds a manifest reader returning the supplied current metadata.
+   *
    * @param array<string, mixed>|null $metadata
    *   Current standby metadata.
    */

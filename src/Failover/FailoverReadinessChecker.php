@@ -153,6 +153,8 @@ final class FailoverReadinessChecker implements FailoverReadinessCheckerInterfac
   }
 
   /**
+   * Removes duplicate blocker codes while preserving first evidence.
+   *
    * @param list<FailoverBlocker> $blockers
    *   Possibly repeated blockers from independent evidence sources.
    *

@@ -19,6 +19,8 @@ final readonly class FailoverBlocker {
   }
 
   /**
+   * Returns the stable machine-readable blocker representation.
+   *
    * @return array{code: string, message: string}
    *   Machine-readable blocker.
    */

@@ -10,6 +10,8 @@ namespace Drupal\dbtng_migrator\Model;
 final readonly class FailoverReadinessReport {
 
   /**
+   * Creates a secret-free failover-readiness evidence report.
+   *
    * @param list<FailoverBlocker> $blockers
    *   Typed blockers preventing controlled promotion.
    */
@@ -39,6 +41,8 @@ final readonly class FailoverReadinessReport {
   }
 
   /**
+   * Returns machine-readable secret-free readiness evidence.
+   *
    * @return array<string, bool|int|string|array<int, array{code: string, message: string}>|null>
    *   Machine-readable readiness evidence.
    */
