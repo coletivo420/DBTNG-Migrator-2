@@ -32,6 +32,7 @@ All notable changes to DBTNG Migrator 2 will be documented here.
 - Capture event IDs are durable identifiers rather than commit-order watermarks; sync acknowledges exact applied event IDs only after standby commit.
 - Sync is bounded and one-shot only. Continuous worker/watch, automatic failover, and row-level coverage for TRUNCATE/DDL remain unimplemented.
 - The 2026-10-07 canonical-host E2 validation passed both FULL directions, CLEAN policy, exact-ACK replay, standby outage recovery and a 1,200-event bounded backlog. Final SQLite standby is CLEAN, MATCH and explicitly not full-equivalent/promotable.
+- CLEAN explicitly treats Drupal's `cachetags` invalidation table as schema-only, matching the `cache_*` cache projection.
 - Renamed the canonical Virtualmin integration host to `dbtng.toca.net.br`, preserving the dedicated site's Unix account, home, database and document root.
 - SQLite online snapshots register Drupal's `NOCASE_UTF8` collation before integrity checks so Drupal indexes validate correctly.
 - Replication profile defaults to conservative `full`; `clean` is opt-in.

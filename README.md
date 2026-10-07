@@ -102,6 +102,7 @@ It keeps Drupal-required schema while omitting selected volatile data:
 | Table/category | Policy |
 | --- | --- |
 | `cache_*` | schema only |
+| `cachetags` | schema only |
 | `sessions` | schema only |
 | `semaphore` | schema only |
 | `batch` | schema only |

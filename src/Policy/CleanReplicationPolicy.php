@@ -23,6 +23,7 @@ final class CleanReplicationPolicy implements ReplicationPolicyInterface {
    * @var list<string>
    */
   private const SCHEMA_ONLY_TABLES = [
+    'cachetags',
     'sessions',
     'semaphore',
     'batch',

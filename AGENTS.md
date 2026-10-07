@@ -49,6 +49,7 @@ This file is normative guidance for humans and AI coding agents. Architectural c
 43. **Sync is one bounded batch per invocation.** Do not add polling loops, watch mode, or a daemon before the continuous worker phase.
 44. **A sync batch is current-state application, not SQL replay.** Collapse dirty keys, read each current primary row explicitly, and apply it idempotently to the standby.
 45. **Profile/schema/topology drift blocks sync and requires rebuild.** Do not perform incremental DDL or infer that a clean standby is promotable.
+46. **CLEAN treats Drupal `cachetags` as schema-only alongside `cache_*`.** Cache tag invalidation state is transient and must not create a copied-table parity failure when cache tables are intentionally empty.
 
 ## Current product boundary
 

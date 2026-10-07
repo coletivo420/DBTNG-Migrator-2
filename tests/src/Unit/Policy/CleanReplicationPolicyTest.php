@@ -36,6 +36,7 @@ final class CleanReplicationPolicyTest extends TestCase {
    */
   public static function tablePolicyProvider(): iterable {
     yield 'cache data is disposable' => ['cache_data', ReplicationDecision::SchemaOnly];
+    yield 'cache tag invalidation state is disposable' => ['cachetags', ReplicationDecision::SchemaOnly];
     yield 'sessions are disposable' => ['sessions', ReplicationDecision::SchemaOnly];
     yield 'semaphore locks are disposable' => ['semaphore', ReplicationDecision::SchemaOnly];
     yield 'batch state is disposable' => ['batch', ReplicationDecision::SchemaOnly];
