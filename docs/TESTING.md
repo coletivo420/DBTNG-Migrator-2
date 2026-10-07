@@ -192,9 +192,15 @@ On `dbtng.toca.net.br` (Drupal 11.4.8, PHP 8.4.26, Drush 13.8.0, MariaDB 11.8.6,
 Test-only injected exceptions were exercised at all available lifecycle points for SQLite publication and at candidate creation, mid-transfer, after validation, before publication and immediately before MariaDB's atomic rename. Each attempt retained the prior published pointer or the 57 canonical MariaDB application tables. These tests exercise handled process failures; an operating-system kill or host power-loss drill remains a separate durability test. PHPUnit currently reports 17 upstream deprecations.
 
 
-## Phase E1 live capture acceptance (pending host session)
+## Phase E1 live capture acceptance
 
-When local/Codex host access resumes, validate both primary engines on `dbtng.toca.net.br`.
+Both MariaDB and SQLite capture were validated on `dbtng.toca.net.br`: row trigger installation, committed INSERT/UPDATE/DELETE, rollback coupling, PK changes, no-PK table-dirty fallback, persistent backlog across process exit, capture exclusion from inventory/rebuild, and SQLite WAL. TRUNCATE and DDL do not emit row events and remain reconciliation/rebuild cases.
+
+## Phase E2 sync-once coverage
+
+Unit tests cover composite-key canonicalization, duplicate/out-of-order event reduction, exact event-ID preservation, SQLite current-row reads, idempotent upsert/delete, bounded table replacement, and rollback when table replacement fails.
+
+Live validation on 2026-10-07 passed both FULL directions, CLEAN MariaDB -> SQLite policy, no-PK table-dirty replacement in both directions, composite-key change, current-state update collapse, exact ACK failure/replay, standby permission failure with backlog retention, profile-mismatch blocking and 1,200 events across 500/500/200 batches. Each sync batch used approximately 4–6 MiB additional peak memory. The final canonical environment is MariaDB primary / SQLite CLEAN standby, capture healthy, zero pending and CLEAN reconciliation `MATCH`; the final standby is not FULL-equivalent or promotable. A full-profile drift after `cache:rebuild` demonstrated that MySQL TRUNCATE remains uncovered and can require rebuild.
 
 For MariaDB primary:
 

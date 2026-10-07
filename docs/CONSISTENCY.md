@@ -38,9 +38,9 @@ Import adds one extra invariant: destination emptiness is checked before writes 
 
 ## Catch-up
 
-Phase E1 establishes a durable set of primary-side dirty events but does not yet implement catch-up/application.
+Phase E1 establishes durable primary-side dirty events. Phase E2 implements bounded one-shot catch-up/application.
 
-A future catch-up worker must not treat the auto-increment capture ID as commit order. It will consume currently visible events, apply their authoritative current-state effect idempotently, and acknowledge the exact IDs only after the standby transaction is durable. Snapshot/capture handoff semantics must be proven before the pre-CDC publication fence is removed.
+The one-shot sync engine does not treat the auto-increment capture ID as commit order. It consumes currently visible events, applies their authoritative current-state effect idempotently, and acknowledges exact IDs only after the standby transaction is durable. If ACK fails, committed standby effects are replayed safely. Snapshot/capture handoff semantics and final fencing remain necessary; E2 does not establish continuous zero-lag behavior.
 
 ## Lag
 

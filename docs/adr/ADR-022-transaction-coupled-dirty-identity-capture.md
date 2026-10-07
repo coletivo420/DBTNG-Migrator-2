@@ -68,5 +68,9 @@ Capture infrastructure belongs to a physical database while it is primary. Autom
 
 - Normal physical inventory excludes the reserved capture table/triggers.
 - Tables without safe row identity may cause coarser table reconciliation later.
-- The future worker can be idempotent by re-reading authoritative current primary state instead of replaying source SQL.
-- E1 is primary-side durability only; it does not yet change the standby or provide a continuous lag SLA.
+- The E2 sync worker is idempotent by re-reading authoritative current primary state instead of replaying source SQL.
+- E1 is the durable primary-side capture layer. Phase E2 applies a bounded batch by re-reading authoritative current state and acknowledging exact event IDs only after a durable standby transaction. It does not replay SQL or use a scalar watermark.
+- A failed ACK may cause idempotent replay; this is expected and safe. Sync remains one-shot, and no continuous lag SLA is claimed.
+- A table-dirty event is reconciled by streaming the current table only when replacement is safe; otherwise sync blocks and requires rebuild.
+- Profile, topology, or schema baseline drift blocks sync and requires a rebuild rather than incremental DDL.
+- After a successful standby commit, operational manifest metadata is updated before ACK. Incremental SQLite changes invalidate the original whole-file artifact checksum; schema/profile/generation identity remains the baseline, while integrity and logical reconciliation validate the live database.

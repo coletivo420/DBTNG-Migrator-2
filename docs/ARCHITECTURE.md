@@ -125,9 +125,11 @@ Captured records contain operation, table, identity kind and primary-key JSON wh
 
 The trigger insert participates in the originating primary transaction, so rolled-back writes do not become committed capture records. MySQL-family event IDs are identifiers only, not commit-order watermarks.
 
-### Continuous synchronization
+### One-shot synchronization (Phase E2)
 
-`SyncEngineInterface` will later consume durable events, re-read authoritative current state, apply policy to the standby and acknowledge exact event IDs only after destination durability. That application loop is not implemented in E1.
+`SyncEngineInterface::syncOnce()` consumes a bounded set of durable events, reduces them to dirty identities, re-reads each current primary row, and applies idempotent upserts/deletes or a streamed table replacement to the explicit standby connection. It commits standby effects before acknowledging the exact event IDs in the batch. It never replays SQL or treats event IDs as a watermark. A failed ACK is safe to replay.
+
+The Drush command performs one batch only. A later worker phase may schedule repeated batches; this phase has no polling loop, watch mode, or daemon.
 
 ## Components
 
@@ -190,4 +192,4 @@ The runtime resolves primary and standby roles before any operation. Destination
 
 Logical import builds destination DDL from physical inventory and transfers rows with cursor-based bounded batches. MariaDB/MySQL uses a dedicated repeatable-read consistent snapshot; SQLite uses a read transaction. The destination is marked initialized only after schema, row-count, integrity and engine-specific checks succeed. SQLite publication uses a validated candidate file. MariaDB non-unique indexes that exceed InnoDB key limits are shortened with an explicit portability warning; unique indexes that cannot be preserved block strict import.
 
-The `clean` profile is limited to MariaDB/MySQL primary -> SQLite standby. The full profile remains required for any standby intended for promotion. CDC, reconciliation and continuous sync remain future work.
+The `clean` profile is limited to MariaDB/MySQL primary -> SQLite standby. The full profile remains required for any standby intended for promotion. E2 sync requires a matching published manifest and schema baseline; profile/topology/schema drift returns rebuild-required. Capture does not cover TRUNCATE or DDL, and automatic role rebinding remains future work.

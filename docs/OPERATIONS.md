@@ -34,7 +34,7 @@ Import supports:
 
 A non-empty destination defaults to `abort`. Operators may explicitly choose `backup_then_clear` or `clear`; neither mode merges data, and both are restricted to the standby.
 
-After successful validation, the destination can be marked initialized and continuous sync may begin from the corresponding source change position.
+After successful validation, the destination has a durable baseline. With E1/E2 capture enabled, a bounded `dbtng:sync --once` batch can catch up changes; continuous sync is not yet provided.
 
 ## Native backup and rebuild
 
@@ -70,19 +70,23 @@ Schema-changing deployments (`composer` updates, module install/uninstall and `d
 Phase C commands are available through Drush: `dbtng:doctor`, `dbtng:preflight`, `dbtng:backup`, `dbtng:restore` and `dbtng:import`. The import/restore target is always the configured standby. Use `abort` unless a verified safety backup followed by standby clearing is intended. The live environment is left with MariaDB primary and SQLite standby; the latest SQLite standby is the documented `clean` projection and must not be promoted as a full-equivalent copy.
 
 
-## Durable change capture (Phase E1)
+## Durable capture and bounded sync (Phases E1/E2)
 
 Code-level commands:
 
 ```bash
 drush dbtng:capture:install
 drush dbtng:capture:status
+drush dbtng:sync --once
+drush dbtng:sync --once --limit=500
 ```
 
 `capture:install` installs the reserved change log and row triggers on the **currently selected primary**. It does not modify the standby and does not establish a synchronization baseline by itself.
 
 `capture:status` reports installed/expected trigger counts, tracked tables, table-dirty fallbacks and pending event count without acknowledging anything.
 
-There is intentionally no normal operator command to discard/acknowledge backlog in E1. Exact acknowledgement exists as an internal contract for the future sync worker and must occur only after the corresponding standby effect is durable.
+`dbtng:sync --once` applies at most one bounded event batch. Repeat invocations to drain a larger backlog. Events are reduced to dirty identities, current rows are read again from the primary, and the standby transaction commits before exact event IDs are acknowledged. The command never replays captured SQL and never acknowledges by a maximum-ID watermark. If it fails after standby commit but before ACK, a later invocation safely reapplies the same current state.
 
-The feature still requires live validation on `dbtng.toca.net.br` before Phase E1 can be marked operationally complete.
+Sync blocks on unhealthy capture, profile/topology/schema mismatch, or incompatible standby schema and requires a rebuild. No polling/watch mode, daemon, continuous lag SLA, or automatic role transition exists. MySQL-family TRUNCATE and DDL remain outside row-trigger capture.
+
+One-shot sync can return `MORE_PENDING`; invoke it again to process the next bounded batch. Its final `pending` value is observed on the primary before later writes and is not a lag SLA. A successful batch updates the private manifest after standby commit and before ACK. SQLite's original full-file generation checksum is invalidated by incremental writes; integrity and logical reconciliation remain the post-sync checks.

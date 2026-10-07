@@ -39,13 +39,16 @@ This file is normative guidance for humans and AI coding agents. Architectural c
 33. **Drush commands that inject Drupal services must declare the appropriate Drush bootstrap level.** Use the current Symfony `AsCommand` and `AutowireTrait` form supported by Drush 13.7+ and validate command discovery in the actual Composer installation layout.
 34. **Schema defaults are semantic values, not portable SQL fragments.** Introspect and decode only safe literal defaults, leave backend expressions for portability analysis, and quote string defaults with the destination driver's quoting rules.
 35. **Reserved candidate namespaces are part of rebuild safety.** Normal inventories hide DBTNG staging/archive objects, while explicit candidate validation must include the exact staged table set. SQLite candidate WAL/SHM sidecars must be closed and cleaned before publication.
-36. **Never replay captured raw SQL across engines.** Durable capture records dirty logical identities only; the future sync worker must read authoritative current state from the primary.
+36. **Never replay captured raw SQL across engines.** Durable capture records dirty logical identities only; sync reads authoritative current state from the primary.
 37. **Capture event IDs are not commit-order watermarks.** MySQL-family transactions can commit out of auto-increment allocation order; acknowledge exact durable event IDs only after their standby effect is durable.
 38. **Tables without a safely encodable primary key degrade to table-dirty capture.** Do not invent row identities from offsets, unordered columns or engine-specific row IDs.
 39. **TRUNCATE and DDL are outside row-trigger CDC coverage.** Detect schema/structural drift through reconciliation/fingerprints and require rebuild or another explicit mechanism.
 40. **Capture infrastructure belongs only to the selected primary role.** A future role transition must fence and rebind capture deliberately; never infer that triggers on an old primary remain authoritative.
 41. **Installing capture does not establish standby parity.** After first activation, create/rebuild a validated baseline before any continuous-sync claim.
-42. **Never acknowledge a captured event before downstream durability.** E1 exposes exact acknowledgement primitives for the future worker, but no current command may discard backlog as a substitute for applying it.
+42. **Never acknowledge a captured event before downstream durability.** Sync commits standby effects first, then acknowledges only the exact event IDs in that batch; never use a maximum-ID watermark.
+43. **Sync is one bounded batch per invocation.** Do not add polling loops, watch mode, or a daemon before the continuous worker phase.
+44. **A sync batch is current-state application, not SQL replay.** Collapse dirty keys, read each current primary row explicitly, and apply it idempotently to the standby.
+45. **Profile/schema/topology drift blocks sync and requires rebuild.** Do not perform incremental DDL or infer that a clean standby is promotable.
 
 ## Current product boundary
 
@@ -54,7 +57,7 @@ Initial topologies:
 - MariaDB/MySQL primary -> SQLite standby (`full` or opt-in `clean`).
 - SQLite primary -> MariaDB/MySQL standby (`full`).
 
-Both directions are implemented for logical import and candidate rebuild/reconciliation. Phase E1 adds primary-side durable capture only; standby application and continuous synchronization remain future work. Browser download remains future work.
+Both directions are implemented for logical import, candidate rebuild/reconciliation, and bounded one-shot sync. Continuous workers/watch mode, automatic role transitions, and browser downloads remain future work.
 
 PostgreSQL and other engines are future adapters.
 
@@ -155,7 +158,7 @@ Do not claim production readiness until the beta/stable criteria in `docs/TESTIN
 - Failure injection is supplied through an injected test service; production uses `NullFailureInjector`. Do not add ad-hoc environment-variable failpoints.
 
 
-## Phase E1 capture checks
+## Durable capture and sync checks
 
 - Capture uses the reserved `dbtng_migrator_change_log` table and `dbtng_migrator_cdc_*` triggers on the selected primary only.
 - Normal schema inventory must hide DBTNG capture tables/triggers so they are never migrated as Drupal application state.

@@ -126,7 +126,7 @@ Reserved for a future, more aggressive SQLite standby projection that can exclud
 4. **Snapshot/Rebuild** — reconstructs an initialized standby using an isolated candidate.
 5. **ChangeCapture** — Phase E1 installs engine-specific row triggers on the selected primary and records durable dirty-table/dirty-key events without replaying raw SQL.
 6. **PolicyEngine** — decides how standby data is represented.
-7. **SyncEngine** — applies captured changes to the standby and tracks lag.
+7. **SyncEngine** — applies one bounded batch of captured dirty identities by re-reading current primary state, committing standby effects, then acknowledging exact event IDs.
 
 Import and rebuild share schema introspection, portability analysis, bounded-memory transfer and validation. Native backup/restore remains same-engine.
 
@@ -142,7 +142,7 @@ Codex is authorized to provision and maintain that development installation with
 
 ## Project status
 
-Phases A through D are merged and live-validated: topology resolution, physical inventory, backup/restore, bidirectional logical import, isolated rebuild candidates, controlled publication and read-only reconciliation are operational. Phase E1 adds durable trigger-based primary-side change capture, but does not yet apply captured events to the standby. Continuous synchronization and automatic failover remain out of scope.
+Phases A through D and E1 are merged and live-validated. Phase E2 adds `drush dbtng:sync --once`, a single bounded, idempotent catch-up batch for either primary/standby engine direction. It does not run continuously: operators invoke it again to drain further backlog. Automatic failover, automatic role rebinding, CDC for TRUNCATE/DDL, and browser downloads remain out of scope.
 
 ## Requirements
 
@@ -159,8 +159,8 @@ Phases A through D are merged and live-validated: topology resolution, physical 
 2. Runtime topology resolver, doctor/preflight, MariaDB/MySQL and SQLite physical inventory, destination state inspection, portability analysis, and same-engine native backups. (complete)
 3. Controlled standby clearing, native restore and logical import/bootstrap in both directions. (complete)
 4. Candidate-based rebuild, publication and profile-aware reconciliation. (complete)
-5. Engine-specific durable change capture. (Phase E1 implementation in progress)
-6. Continuous synchronization and reconciliation.
+5. Durable primary-side change capture and bounded one-shot standby application. (Phase E1/E2)
+6. Continuous synchronization worker and operational lag monitoring. (Phase F)
 7. Optional SQLite-standby clean projection.
 8. Entity-aware revision projection.
 9. Validation, lag monitoring and application compatibility tests.

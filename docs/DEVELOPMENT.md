@@ -28,6 +28,8 @@ See [DEVELOPMENT_ENVIRONMENT.md](DEVELOPMENT_ENVIRONMENT.md) before provisioning
 
 Core logic must use dependency injection and explicit database connections. Avoid global connection switching and service-locator calls inside the synchronization engine.
 
+The E2 sync primitive is one bounded `syncOnce()` invocation. It treats capture records as dirty identities, reads authoritative current rows through the explicit primary connection, commits each batch on the explicit standby connection, and only then acknowledges exact event IDs. It must remain idempotent across a crash after standby commit and before acknowledgement. Do not implement polling/watch in this layer.
+
 Runtime primary selection cannot depend solely on Drupal Config API because Drupal needs its default database connection before configuration can be read. Connection topology belongs in deployment settings; DBTNG behavior/policy belongs in module config.
 
 For the Phase B runtime resolver, deployment settings provide `primary_connection_key`, `standby_connection_key`, `primary_engine` and `standby_engine` under `$settings['dbtng_migrator']`. A dual-role example is maintained in `examples/settings.dbtng.php.example`; keep its populated copy outside version control.

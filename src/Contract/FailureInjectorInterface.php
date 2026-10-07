@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Drupal\dbtng_migrator\Contract;
 
 /**
- * Test seam for controlled failures at rebuild lifecycle boundaries. */
+ * Test seam for controlled failures at operation lifecycle boundaries. */
 interface FailureInjectorInterface {
 
   /**
