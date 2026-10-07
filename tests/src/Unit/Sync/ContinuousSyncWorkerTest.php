@@ -105,6 +105,46 @@ final class ContinuousSyncWorkerTest extends TestCase {
     self::assertSame(SyncWorkerState::Stopped, $store->read()?->state);
   }
 
+  public function testBackoffResetsAfterSuccessfulBatch(): void {
+    $sync = $this->createMock(SyncEngineInterface::class);
+    $attempt = 0;
+    $sync->expects(self::exactly(3))
+      ->method('syncOnce')
+      ->willReturnCallback(function () use (&$attempt): SyncBatchResult {
+        $attempt++;
+        if ($attempt === 1 || $attempt === 3) {
+          throw new SyncTransientException('standby unavailable');
+        }
+        return $this->batchResult(SyncResultStatus::CaughtUp, 0);
+      });
+
+    $capture = $this->captureMock([
+      new ChangeBacklogStatus(2, 1, 2, 1),
+      new ChangeBacklogStatus(2, 1, 2, 2),
+      new ChangeBacklogStatus(0),
+      new ChangeBacklogStatus(1, 3, 3, 1),
+      new ChangeBacklogStatus(1, 3, 3, 2),
+    ]);
+    [$worker, , $sleeper] = $this->worker($sync, $capture);
+
+    $worker->run(NULL, 3);
+
+    self::assertSame([1, 1, 1], $sleeper->delays, 'A successful batch must reset transient backoff before the next failure.');
+  }
+
+  public function testStopRequestedBeforeLoopDoesNotStartBatch(): void {
+    $sync = $this->createMock(SyncEngineInterface::class);
+    $sync->expects(self::never())->method('syncOnce');
+    $capture = $this->captureMock([new ChangeBacklogStatus(0)]);
+    [$worker, $store, $sleeper] = $this->worker($sync, $capture);
+
+    $worker->requestStop();
+    $worker->run();
+
+    self::assertSame([], $sleeper->delays);
+    self::assertSame(SyncWorkerState::Stopped, $store->read()?->state);
+  }
+
   /**
    * Creates a healthy capture mock with deterministic backlog samples.
    *

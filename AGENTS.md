@@ -56,6 +56,9 @@ This file is normative guidance for humans and AI coding agents. Architectural c
 50. **Oldest pending age is not exact replication lag.** It is the wall-clock age of the oldest currently pending durable event and must be labeled accordingly.
 51. **Do not classify retry behavior by parsing exception messages.** Use typed transient/blocked/rebuild-required exceptions.
 52. **systemd supervision must run as the Virtualmin domain user, never root, and unit files must contain no credentials.**
+53. **Host-gate scripts must remain read-only.** Rendering/validation tooling may inspect Git, Drush, HTTP, systemd and journals but must not install services, mutate database permissions/content, acknowledge events or change authority.
+54. **Rendered systemd units are validated artifacts.** Reject unresolved placeholders, root execution, shell/sudo wrappers, `--once`, credential-bearing environment directives and embedded credential URIs before installation.
+55. **CI must validate internal service wiring/config schema/Drush command metadata.** Do not defer missing service classes, aliases or command metadata to the first live `drush cr`.
 
 ## Current product boundary
 

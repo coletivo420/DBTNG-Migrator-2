@@ -144,7 +144,7 @@ Codex is authorized to provision and maintain that development installation with
 
 ## Project status
 
-Phases A through E2 are merged and live-validated. Phase F code adds `drush dbtng:sync --watch` and `dbtng:sync:status` around the proven one-shot primitive, with private heartbeat/state, singleton locking and capped retry/backoff. Host-level systemd installation and process/outage validation remain the Phase F integration gate before merge. Automatic failover, automatic role rebinding, CDC for TRUNCATE/DDL, and browser downloads remain out of scope.
+Phases A through E2 are merged and live-validated. Phase F code adds `drush dbtng:sync --watch` and `dbtng:sync:status` around the proven one-shot primitive, with private heartbeat/state, singleton locking and capped retry/backoff. Phase F.1 adds versioned systemd rendering/validation and a read-only host gate so live validation is reproducible rather than an ad-hoc command sequence. Host-level systemd installation and process/outage validation remain the Phase F integration gate before merge. Automatic failover, automatic role rebinding, CDC for TRUNCATE/DDL, and browser downloads remain out of scope.
 
 ## Requirements
 

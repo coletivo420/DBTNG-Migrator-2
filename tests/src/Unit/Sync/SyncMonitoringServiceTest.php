@@ -83,6 +83,41 @@ final class SyncMonitoringServiceTest extends TestCase {
     self::assertSame(SyncHealth::Stale, $monitor->report()->health);
   }
 
+  public function testStoppedWorkerIsStaleEvenWithFreshHeartbeat(): void {
+    $clock = new MutableClock(new \DateTimeImmutable('2026-10-07T12:10:00+00:00'));
+    $store = new SyncWorkerStateStore(new PrivateRuntimeDirectory($this->privatePath));
+    $store->write(new SyncWorkerSnapshot(
+      321,
+      SyncWorkerState::Stopped,
+      '2026-10-07T12:00:00+00:00',
+      '2026-10-07T12:10:00+00:00',
+      'MariaDB',
+      'SQLite',
+      'clean',
+    ));
+    $capture = $this->createMock(ChangeCaptureInterface::class);
+    $capture->method('status')->willReturn(new ChangeCaptureStatus(
+      DatabaseEngine::MysqlFamily,
+      TRUE,
+      TRUE,
+      58,
+      174,
+      174,
+      0,
+      0,
+    ));
+
+    $monitor = new SyncMonitoringService(
+      $capture,
+      $this->resolver(),
+      new SyncWorkerConfiguration(),
+      $store,
+      $clock,
+    );
+
+    self::assertSame(SyncHealth::Stale, $monitor->report()->health);
+  }
+
   private function resolver(): DatabaseTopologyResolverInterface {
     $connection = $this->createMock(Connection::class);
     $resolver = $this->createMock(DatabaseTopologyResolverInterface::class);

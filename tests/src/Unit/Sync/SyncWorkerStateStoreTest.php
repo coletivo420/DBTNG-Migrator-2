@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\dbtng_migrator\Unit\Sync;
 
+use Drupal\dbtng_migrator\Exception\DbtngException;
 use Drupal\dbtng_migrator\Exception\WorkerAlreadyRunningException;
 use Drupal\dbtng_migrator\Model\SyncWorkerSnapshot;
 use Drupal\dbtng_migrator\Model\SyncWorkerState;
@@ -62,6 +63,34 @@ final class SyncWorkerStateStoreTest extends TestCase {
     $store = new SyncWorkerStateStore($runtime);
     file_put_contents($runtime->path() . '/sync-status.json', '{broken');
     self::assertNull($store->read());
+  }
+
+  public function testStateStoreRejectsSymlinkTarget(): void {
+    $runtime = new PrivateRuntimeDirectory($this->privatePath);
+    $store = new SyncWorkerStateStore($runtime);
+    $target = $this->privatePath . '/outside-status.json';
+    file_put_contents($target, '{}');
+    self::assertTrue(symlink($target, $runtime->path() . '/sync-status.json'));
+
+    $this->expectException(DbtngException::class);
+    $store->write(new SyncWorkerSnapshot(
+      123,
+      SyncWorkerState::Idle,
+      '2026-10-07T12:00:00+00:00',
+      '2026-10-07T12:00:01+00:00',
+      'MariaDB',
+      'SQLite',
+      'clean',
+    ));
+  }
+
+  public function testRuntimeDirectoryRejectsLoosePermissions(): void {
+    $runtime = new PrivateRuntimeDirectory($this->privatePath);
+    $path = $runtime->path();
+    self::assertTrue(chmod($path, 0755));
+
+    $this->expectException(DbtngException::class);
+    $runtime->path();
   }
 
   public function testSecondWorkerLockIsRejectedUntilRelease(): void {

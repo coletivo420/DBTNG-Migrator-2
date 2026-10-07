@@ -128,3 +128,24 @@ A systemd reference unit is provided at `docs/examples/dbtng-migrator-sync.servi
 ### Signal prerequisite
 
 Graceful `systemctl stop` behavior requires the CLI PHP running Drush to expose PCNTL/SIGTERM/SIGINT. Check `drush dbtng:doctor` before enabling the continuous worker. If signal support is unavailable, keep the service disabled until the CLI PHP environment is corrected.
+
+### Phase F.1 unit rendering and validation
+
+Do not hand-edit the reference unit into place. Render it as the domain user into a non-system temporary path, validate it, then use privileged `install` only for the already validated artifact:
+
+```bash
+scripts/render-systemd-unit.sh \
+  --user bdtgn \
+  --group <discovered-domain-group> \
+  --project-root /home/bdtgn/apps/dbtng-site \
+  --drush /home/bdtgn/apps/dbtng-site/vendor/bin/drush \
+  --output /tmp/dbtng-migrator-sync.service
+
+scripts/validate-systemd-unit.sh \
+  --require-systemd-analyze \
+  /tmp/dbtng-migrator-sync.service
+```
+
+The renderer is scoped to the canonical `https://dbtng.toca.net.br/` URI and refuses `User=root`. The validator rejects unresolved placeholders, root execution, shell/sudo wrappers, `--once`, obvious credential-bearing environment directives and credential-bearing DSN/URI forms.
+
+`scripts/validate-phase-f-host.sh` is deliberately read-only and should be used before and after service installation. It never starts/stops/kills a service, changes SQLite permissions, mutates Drupal content or acknowledges capture events.

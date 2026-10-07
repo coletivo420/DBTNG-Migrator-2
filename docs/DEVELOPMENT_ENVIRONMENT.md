@@ -371,3 +371,31 @@ Do not use `virtualmin list-domains --multiline` during this work.
 ### Phase F signal prerequisite
 
 Before installing the reference systemd unit, confirm the CLI PHP used by Drush has PCNTL signal support. `dbtng:doctor` reports `PCNTL signals: AVAILABLE` when both SIGTERM and SIGINT handling are available. Without PCNTL, do not claim graceful Phase F shutdown; process-crash safety still depends on E2 idempotence/exact ACK, but the host gate remains incomplete.
+
+## Phase F.1 scripted host gate
+
+Before any systemd mutation, run as `bdtgn`:
+
+```bash
+cd /home/bdtgn/src/DBTNG-Migrator-2
+
+scripts/validate-phase-f-host.sh \
+  --site-root /home/bdtgn/apps/dbtng-site \
+  --mode preflight
+```
+
+This proves a clean module checkout, PHP PCNTL signal support, Drush discovery for `dbtng:sync` and `dbtng:sync:status`, doctor/capture/reconciliation health, sync-status JSON contract and HTTPS 200 without mutating the environment.
+
+Render the unit with `scripts/render-systemd-unit.sh`, validate it with `scripts/validate-systemd-unit.sh --require-systemd-analyze`, and only then install it using the minimal privileged file operation required.
+
+After the service is enabled/active and the destructive/process tests are complete, run:
+
+```bash
+scripts/validate-phase-f-host.sh \
+  --site-root /home/bdtgn/apps/dbtng-site \
+  --mode service
+```
+
+The service-mode gate requires ACTIVE+ENABLED, non-root execution, worker `HEALTHY`, healthy capture, pending zero, reconciliation success and HTTP 200. If the domain user cannot read the journal, the script reports that limitation rather than invoking sudo internally; Codex must separately inspect only a sanitized privileged journal excerpt.
+
+The script itself must stay read-only. Do not add automatic service installation, permission sabotage, fixture writes, signal delivery or ACK operations to it.
