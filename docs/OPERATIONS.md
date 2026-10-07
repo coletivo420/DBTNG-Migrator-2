@@ -149,3 +149,29 @@ scripts/validate-systemd-unit.sh \
 The renderer is scoped to the canonical `https://dbtng.toca.net.br/` URI and refuses `User=root`. The validator rejects unresolved placeholders, root execution, shell/sudo wrappers, `--once`, obvious credential-bearing environment directives and credential-bearing DSN/URI forms.
 
 `scripts/validate-phase-f-host.sh` is deliberately read-only and should be used before and after service installation. It never starts/stops/kills a service, changes SQLite permissions, mutates Drupal content or acknowledges capture events.
+
+
+## Phase G1 failover readiness
+
+Read-only operator command:
+
+```bash
+drush dbtng:failover:check
+drush dbtng:failover:check --format=json
+```
+
+Exit 0 means the current database-side evidence is `READY`; non-zero means `NOT_READY` or the check itself failed.
+
+Do not interpret `READY` as permission to switch immediately. Before authority changes:
+
+1. stop the continuous worker;
+2. drain any new pending events;
+3. require readiness `READY`;
+4. fence application writes externally;
+5. re-run readiness and require `READY` under the fence;
+6. switch pre-bootstrap deployment configuration;
+7. verify the new primary boots and explicitly rebind capture;
+8. rebuild a new standby from the new authority;
+9. reconcile and restart continuous sync.
+
+A CLEAN standby can never pass this gate.

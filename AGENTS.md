@@ -59,6 +59,10 @@ This file is normative guidance for humans and AI coding agents. Architectural c
 53. **Host-gate scripts must remain read-only.** Rendering/validation tooling may inspect Git, Drush, HTTP, systemd and journals but must not install services, mutate database permissions/content, acknowledge events or change authority.
 54. **Rendered systemd units are validated artifacts.** Reject unresolved placeholders, root execution, shell/sudo wrappers, `--once`, credential-bearing environment directives and embedded credential URIs before installation.
 55. **CI must validate internal service wiring/config schema/Drush command metadata.** Do not defer missing service classes, aliases or command metadata to the first live `drush cr`.
+56. **Failover readiness is read-only evidence, never authority.** `dbtng:failover:check` may report data-plane `READY`, but it must not switch connections, edit deployment settings, stop/start services, fence writes, install capture or promote a database.
+57. **CLEAN is never promotion-ready.** Any standby considered for authority must have a current published FULL generation explicitly marked activatable and full-fidelity.
+58. **External fencing cannot be inferred from Drupal.** A readiness command must state that write fencing and worker stop remain operator/deployment obligations even when all database-side checks pass.
+59. **No automatic failback remains absolute.** After authority changes and accepts writes, the old primary is not a merge target or automatic recovery source; build a new standby from the current authority.
 
 ## Current product boundary
 

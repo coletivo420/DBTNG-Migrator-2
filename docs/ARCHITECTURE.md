@@ -218,3 +218,29 @@ SyncEngine::syncOnce()
 There is no second change-application engine. The worker lifetime lock prevents duplicate watch processes, while the existing `OperationLock` is acquired only inside each batch. This keeps rebuild/import/restore serialization intact without holding a global database-operation lock for the worker lifetime.
 
 Worker state is private, secret-free operational telemetry and is never an authority source.
+
+
+## Phase G1 failover control plane
+
+Failover readiness is composed from already authoritative evidence rather than a new replication state:
+
+```text
+runtime topology
+      +
+primary capture health/backlog
+      +
+read-only reconciliation
+      +
+current published standby manifest
+      |
+      v
+FailoverReadinessChecker
+      |
+      +--> READY
+      |
+      +--> NOT_READY + typed blockers
+```
+
+No G1 service mutates either database or Drupal deployment authority. Pre-bootstrap role selection remains external deployment configuration per ADR-014.
+
+A FULL published generation must explicitly prove `activatable=true` and `full_fidelity=true`. This fail-closed rule intentionally forces legacy/ambiguous baselines through a fresh FULL rebuild before promotion.

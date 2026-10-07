@@ -113,7 +113,7 @@ foreach (glob($root . '/src/Drush/Commands/*Command.php') ?: [] as $file) {
   $commandNames[$name] = $class;
 }
 
-foreach (['dbtng:sync', 'dbtng:sync:status', 'dbtng:doctor', 'dbtng:capture:status'] as $requiredCommand) {
+foreach (['dbtng:sync', 'dbtng:sync:status', 'dbtng:doctor', 'dbtng:capture:status', 'dbtng:failover:check'] as $requiredCommand) {
   if (!isset($commandNames[$requiredCommand])) {
     failValidation(sprintf('Required Phase F command metadata missing: %s.', $requiredCommand));
   }

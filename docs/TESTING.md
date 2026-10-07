@@ -269,3 +269,19 @@ scripts/validate-phase-f-host.sh \
 ```
 
 The first mode is safe before unit installation. The second requires the worker already ACTIVE+ENABLED and validates unit structure, worker/capture health, pending zero, reconciliation and HTTP without mutating service/database state.
+
+
+## Phase G1 failover readiness coverage
+
+Unit tests must prove:
+
+- FULL + healthy capture + pending zero + reconciliation MATCH + integrity/manifest PASS + published activatable/full-fidelity manifest -> `READY`;
+- CLEAN -> `NOT_READY`;
+- pending events -> `NOT_READY`;
+- unhealthy/missing capture -> `NOT_READY`;
+- reconciliation drift/rebuild-required -> `NOT_READY`;
+- manifest missing, legacy/ambiguous, non-published, profile mismatch, topology mismatch, non-activatable or non-full-fidelity -> `NOT_READY`;
+- the documented failover stage policy rejects skipping the fence/readiness sequence;
+- JSON output remains secret-free and explicitly says external fence + worker stop are required.
+
+Live G1 validation, after Phase F is merged, is read-only: run the command against the canonical CLEAN standby and require `NOT_READY`; rebuild a disposable FULL standby, drain/reconcile, and require `READY` without switching authority. Actual authority switching is a later server gate, not part of the code/CI acceptance for G1.

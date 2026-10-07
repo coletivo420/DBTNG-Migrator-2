@@ -2,14 +2,33 @@
 
 Failover is initially manual and role-based.
 
+## G1 read-only readiness gate
+
+Phase G1 adds:
+
+```bash
+drush dbtng:failover:check
+drush dbtng:failover:check --format=json
+```
+
+This command **does not perform failover**. It combines existing topology, capture, reconciliation and manifest evidence and returns `READY` only when the current standby is a published FULL, activatable, full-fidelity generation with healthy capture, zero pending events, integrity PASS and reconciliation `MATCH`.
+
+`READY` means **data-plane ready for the fenced promotion procedure**. It does not prove that application writes are fenced, that the continuous worker is stopped, or that deployment settings have switched. Those are external control-plane actions and remain mandatory.
+
+Legacy/ambiguous manifests that do not explicitly prove `full_fidelity`, `activatable`, lifecycle `published`, engine direction and schema fingerprint are fail-closed and require a fresh FULL rebuild before promotion.
+
 ## Required sequence
 
 1. Confirm the configured primary is genuinely unavailable or intentionally fenced.
-2. Inspect standby status, age, integrity and replication lag.
-3. Fence the old primary from accepting application writes.
-4. Promote/switch deployment configuration to the standby.
-5. Restart/reload the PHP/application runtime as needed.
-6. Run Drupal smoke checks.
+2. Stop the continuous sync worker as a planned maintenance action.
+3. Drain pending events and require `dbtng:failover:check` to become data-plane `READY`.
+4. Fence the old primary from accepting application writes.
+5. Re-run `dbtng:failover:check` under the fence and require `READY` again.
+6. Promote/switch deployment configuration to the standby.
+7. Restart/reload the PHP/application runtime as needed.
+8. Explicitly verify/rebind durable capture on the new primary.
+9. Build a fresh standby from the new authority.
+10. Run Drupal smoke checks and only then resume the continuous worker.
 
 The exact operational steps differ by topology.
 
@@ -51,3 +70,27 @@ Phase F does not automate failover. Before any future controlled promotion:
 9. restart the continuous worker.
 
 A CLEAN standby remains not promotable.
+
+
+## Documented transition model
+
+The current control plane defines the legal manual progression:
+
+```text
+NORMAL
+  -> FENCED
+  -> DRAINED
+  -> RECONCILED
+  -> READY_TO_PROMOTE
+  -> AUTHORITY_SWITCHED
+  -> CAPTURE_REBOUND
+  -> NEW_STANDBY_REQUIRED
+  -> HEALTHY
+```
+
+The model is intentionally not persisted or executed automatically in G1. It exists to reject unsafe conceptual shortcuts in code/tests and to define future G2 runbook/tooling boundaries.
+
+
+### Readiness observation race
+
+G1 intentionally reads capture/backlog **after** reconciliation and manifest evidence so writes that happen during the check are more likely to become visible as pending blockers. This narrows but cannot eliminate the race: a write may occur immediately after the last read. Therefore the authoritative promotion sequence still requires an external write fence followed by a second `dbtng:failover:check` under that fence.

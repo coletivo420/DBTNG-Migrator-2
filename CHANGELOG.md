@@ -5,6 +5,7 @@ All notable changes to DBTNG Migrator 2 will be documented here.
 ## Unreleased
 
 ### Added
+- Phase G1 read-only failover control plane with `dbtng:failover:check`, typed blockers, machine-readable JSON readiness output, and a documented manual transition state model. The checker cannot switch authority or verify the external write fence.
 - Phase F.1 host-gate tooling: safe systemd unit renderer/validator, read-only canonical-host preflight/service checker, tooling self-tests, and CI validation of service wiring, config schema and Drush command metadata.
 - Phase F continuous sync worker around the existing `syncOnce()` primitive, including `dbtng:sync --watch`, `dbtng:sync:status`, singleton worker locking, private atomic heartbeat/state, capped exponential backoff and oldest-pending-event age metrics.
 - Versioned systemd service example for supervising the non-root watch worker without embedding credentials.
