@@ -14,3 +14,13 @@ compatibility:
 
 retention:
   keep: 3
+
+sync:
+  batch_events: 500
+  poll_seconds: 1
+  health_check_seconds: 30
+  backoff_initial_seconds: 1
+  backoff_max_seconds: 30
+  blocked_retry_seconds: 60
+  heartbeat_stale_seconds: 120
+  lag_warning_seconds: 60

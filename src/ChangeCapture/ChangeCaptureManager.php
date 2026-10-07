@@ -7,6 +7,7 @@ namespace Drupal\dbtng_migrator\ChangeCapture;
 use Drupal\dbtng_migrator\Connection\DatabaseTopologyResolver;
 use Drupal\dbtng_migrator\Contract\ChangeCaptureInterface;
 use Drupal\dbtng_migrator\Exception\DbtngException;
+use Drupal\dbtng_migrator\Model\ChangeBacklogStatus;
 use Drupal\dbtng_migrator\Model\ChangeCaptureStatus;
 use Drupal\dbtng_migrator\Operation\OperationLock;
 use Drupal\dbtng_migrator\Schema\SchemaIntrospectionManager;
@@ -55,6 +56,11 @@ final class ChangeCaptureManager implements ChangeCaptureInterface {
     [$adapter, $database] = $this->adapterAndDatabase();
     $inventory = $this->schemas->inspect($database->connection);
     return $adapter->status($database->connection, $inventory);
+  }
+
+  public function backlog(): ChangeBacklogStatus {
+    [$adapter, $database] = $this->adapterAndDatabase();
+    return $adapter->backlog($database->connection);
   }
 
   public function pending(int $limit = 500): array {

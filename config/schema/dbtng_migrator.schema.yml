@@ -42,3 +42,32 @@ dbtng_migrator.settings:
         keep:
           type: integer
           label: 'Number of previous valid snapshots to retain'
+
+    sync:
+      type: mapping
+      label: 'Continuous synchronization worker settings'
+      mapping:
+        batch_events:
+          type: integer
+          label: 'Maximum captured events per sync batch'
+        poll_seconds:
+          type: integer
+          label: 'Idle polling interval in seconds'
+        health_check_seconds:
+          type: integer
+          label: 'Full capture health-check interval in seconds'
+        backoff_initial_seconds:
+          type: integer
+          label: 'Initial transient-failure backoff in seconds'
+        backoff_max_seconds:
+          type: integer
+          label: 'Maximum transient-failure backoff in seconds'
+        blocked_retry_seconds:
+          type: integer
+          label: 'Blocked-state retry interval in seconds'
+        heartbeat_stale_seconds:
+          type: integer
+          label: 'Heartbeat age considered stale in seconds'
+        lag_warning_seconds:
+          type: integer
+          label: 'Oldest-pending-event age warning threshold in seconds'

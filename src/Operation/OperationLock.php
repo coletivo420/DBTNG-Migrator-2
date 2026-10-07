@@ -6,6 +6,7 @@ namespace Drupal\dbtng_migrator\Operation;
 
 use Drupal\Core\Site\Settings;
 use Drupal\dbtng_migrator\Exception\DbtngException;
+use Drupal\dbtng_migrator\Exception\OperationLockedException;
 
 /**
  * Serializes database-changing DBTNG operations across CLI processes.
@@ -68,7 +69,7 @@ final class OperationLock {
           // A concurrent writer may be between truncate and write.
         }
       }
-      throw new DbtngException(sprintf('Another DBTNG operation is active (%s, PID %s).', $activeOperation, $pid));
+      throw new OperationLockedException(sprintf('Another DBTNG operation is active (%s, PID %s).', $activeOperation, $pid));
     }
 
     $record = json_encode([

@@ -14,6 +14,7 @@ final readonly class SyncStatus {
     public bool $standbyHealthy,
     public ?int $oldestEventId = NULL,
     public ?int $newestEventId = NULL,
+    public ?int $oldestPendingAgeSeconds = NULL,
   ) {
     if ($pendingChanges < 0) {
       throw new \InvalidArgumentException('Pending change count cannot be negative.');
