@@ -9,6 +9,7 @@ use Drupal\dbtng_migrator\Contract\ClockInterface;
 use Drupal\dbtng_migrator\Contract\DatabaseTopologyResolverInterface;
 use Drupal\dbtng_migrator\Model\SyncHealth;
 use Drupal\dbtng_migrator\Model\SyncMonitoringReport;
+use Drupal\dbtng_migrator\Model\SyncWorkerConfiguration;
 use Drupal\dbtng_migrator\Model\SyncWorkerState;
 
 /**
@@ -19,13 +20,12 @@ final class SyncMonitoringService {
   public function __construct(
     private readonly ChangeCaptureInterface $capture,
     private readonly DatabaseTopologyResolverInterface $resolver,
-    private readonly SyncWorkerConfigurationFactory $configurationFactory,
+    private readonly SyncWorkerConfiguration $configuration,
     private readonly SyncWorkerStateStore $stateStore,
     private readonly ClockInterface $clock,
   ) {}
 
   public function report(): SyncMonitoringReport {
-    $configuration = $this->configurationFactory->create();
     $topology = $this->resolver->resolve();
     $capture = $this->capture->status();
     $worker = $this->stateStore->read();
@@ -39,10 +39,10 @@ final class SyncMonitoringService {
       $worker === NULL => SyncHealth::Stale,
       $worker->state === SyncWorkerState::Error => SyncHealth::Error,
       $worker->state === SyncWorkerState::Blocked => SyncHealth::Blocked,
-      $heartbeatAge !== NULL && $heartbeatAge > $configuration->heartbeatStaleSeconds => SyncHealth::Stale,
+      $heartbeatAge !== NULL && $heartbeatAge > $this->configuration->heartbeatStaleSeconds => SyncHealth::Stale,
       $worker->state === SyncWorkerState::Backoff => SyncHealth::Backoff,
       $capture->pendingEvents > 0
-        && ($capture->oldestPendingAgeSeconds ?? 0) >= $configuration->lagWarningSeconds => SyncHealth::Lagging,
+        && ($capture->oldestPendingAgeSeconds ?? 0) >= $this->configuration->lagWarningSeconds => SyncHealth::Lagging,
       $capture->pendingEvents > 0 => SyncHealth::CatchingUp,
       default => SyncHealth::Healthy,
     };

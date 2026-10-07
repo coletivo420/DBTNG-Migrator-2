@@ -14,6 +14,7 @@ use Drupal\dbtng_migrator\Exception\SyncBlockedException;
 use Drupal\dbtng_migrator\Exception\SyncTransientException;
 use Drupal\dbtng_migrator\Model\ChangeBacklogStatus;
 use Drupal\dbtng_migrator\Model\SyncResultStatus;
+use Drupal\dbtng_migrator\Model\SyncWorkerConfiguration;
 use Drupal\dbtng_migrator\Model\SyncWorkerSnapshot;
 use Drupal\dbtng_migrator\Model\SyncWorkerState;
 use Psr\Log\LoggerInterface;
@@ -29,7 +30,7 @@ final class ContinuousSyncWorker {
     private readonly SyncEngineInterface $sync,
     private readonly ChangeCaptureInterface $capture,
     private readonly DatabaseTopologyResolverInterface $resolver,
-    private readonly SyncWorkerConfigurationFactory $configurationFactory,
+    private readonly SyncWorkerConfiguration $configuration,
     private readonly SyncBackoffPolicy $backoff,
     private readonly SyncWorkerStateStore $stateStore,
     private readonly SyncWorkerLock $workerLock,
@@ -49,49 +50,94 @@ final class ContinuousSyncWorker {
     if ($maxCycles !== NULL && $maxCycles < 1) {
       throw new \InvalidArgumentException('Worker maxCycles must be positive when supplied.');
     }
-    $configuration = $this->configurationFactory->create();
-    $batchLimit = $batchLimitOverride ?? $configuration->batchEvents;
+    $batchLimit = $batchLimitOverride ?? $this->configuration->batchEvents;
     if ($batchLimit < 1 || $batchLimit > 5000) {
       throw new \InvalidArgumentException('Worker batch limit must be between 1 and 5000.');
     }
 
     $lock = $this->workerLock->acquire();
-    $topology = $this->resolver->resolve();
-    $startedAt = $this->isoNow();
-    $lastSuccessAt = NULL;
-    $lastBatchUuid = NULL;
-    $lastBatchResult = NULL;
-    $consecutiveFailures = 0;
-    $cycles = 0;
-    $nextHealthCheck = 0;
-    $lastLoggedState = NULL;
-
     try {
-      $this->persist(
-        SyncWorkerState::Starting,
-        $startedAt,
-        $topology->primary->label(),
-        $topology->standby->label(),
-        $topology->profile->value,
-      );
-      $this->logTransition($lastLoggedState, SyncWorkerState::Starting);
+      $topology = $this->resolver->resolve();
+      $startedAt = $this->isoNow();
+      $lastSuccessAt = NULL;
+      $lastBatchUuid = NULL;
+      $lastBatchResult = NULL;
+      $consecutiveFailures = 0;
+      $cycles = 0;
+      $nextHealthCheck = 0;
+      $lastLoggedState = NULL;
 
-      while (!$this->stopRequested && ($maxCycles === NULL || $cycles < $maxCycles)) {
-        $cycles++;
-        $backlog = new ChangeBacklogStatus(0);
-        try {
-          $nowTimestamp = $this->clock->now()->getTimestamp();
-          if ($nowTimestamp >= $nextHealthCheck) {
-            $health = $this->capture->status();
-            if (!$health->healthy) {
-              throw new SyncBlockedException('Continuous sync blocked: primary capture is unhealthy.');
+      try {
+        $this->persist(
+          SyncWorkerState::Starting,
+          $startedAt,
+          $topology->primary->label(),
+          $topology->standby->label(),
+          $topology->profile->value,
+        );
+        $this->logTransition($lastLoggedState, SyncWorkerState::Starting);
+
+        while (!$this->stopRequested && ($maxCycles === NULL || $cycles < $maxCycles)) {
+          $cycles++;
+          $backlog = new ChangeBacklogStatus(0);
+          try {
+            $nowTimestamp = $this->clock->now()->getTimestamp();
+            if ($nowTimestamp >= $nextHealthCheck) {
+              $health = $this->capture->status();
+              if (!$health->healthy) {
+                throw new SyncBlockedException('Continuous sync blocked: primary capture is unhealthy.');
+              }
+              $nextHealthCheck = $nowTimestamp + $this->configuration->healthCheckSeconds;
             }
-            $nextHealthCheck = $nowTimestamp + $configuration->healthCheckSeconds;
-          }
 
-          $backlog = $this->capture->backlog();
-          if ($backlog->pendingEvents === 0) {
+            $backlog = $this->capture->backlog();
+            if ($backlog->pendingEvents === 0) {
+              $consecutiveFailures = 0;
+              $this->persist(
+                SyncWorkerState::Idle,
+                $startedAt,
+                $topology->primary->label(),
+                $topology->standby->label(),
+                $topology->profile->value,
+                $backlog,
+                $lastSuccessAt,
+                $lastBatchUuid,
+                $lastBatchResult,
+              );
+              $this->logTransition($lastLoggedState, SyncWorkerState::Idle);
+              $this->sleeper->sleep($this->configuration->pollSeconds);
+              continue;
+            }
+
+            $this->persist(
+              SyncWorkerState::Draining,
+              $startedAt,
+              $topology->primary->label(),
+              $topology->standby->label(),
+              $topology->profile->value,
+              $backlog,
+              $lastSuccessAt,
+              $lastBatchUuid,
+              $lastBatchResult,
+            );
+            $this->logTransition($lastLoggedState, SyncWorkerState::Draining);
+            $result = $this->sync->syncOnce($batchLimit);
             $consecutiveFailures = 0;
+            $lastSuccessAt = $this->isoNow();
+            $lastBatchUuid = bin2hex(random_bytes(16));
+            $lastBatchResult = $result->result->value;
+            $this->logger->info('DBTNG sync batch applied: {events} events, {dirty} dirty identities, {ack} acknowledged, {pending} pending, {duration} ms.', [
+              'events' => $result->capturedEvents,
+              'dirty' => $result->dirtyIdentities,
+              'ack' => $result->acknowledgedEvents,
+              'pending' => $result->pendingAfter,
+              'duration' => $result->durationMilliseconds,
+            ]);
+
+            if ($result->result === SyncResultStatus::MorePending) {
+              continue;
+            }
+            $backlog = $this->capture->backlog();
             $this->persist(
               SyncWorkerState::Idle,
               $startedAt,
@@ -104,136 +150,93 @@ final class ContinuousSyncWorker {
               $lastBatchResult,
             );
             $this->logTransition($lastLoggedState, SyncWorkerState::Idle);
-            $this->sleeper->sleep($configuration->pollSeconds);
-            continue;
+            $this->sleeper->sleep($this->configuration->pollSeconds);
           }
-
-          $this->persist(
-            SyncWorkerState::Draining,
-            $startedAt,
-            $topology->primary->label(),
-            $topology->standby->label(),
-            $topology->profile->value,
-            $backlog,
-            $lastSuccessAt,
-            $lastBatchUuid,
-            $lastBatchResult,
-          );
-          $this->logTransition($lastLoggedState, SyncWorkerState::Draining);
-          $result = $this->sync->syncOnce($batchLimit);
-          $consecutiveFailures = 0;
-          $lastSuccessAt = $this->isoNow();
-          $lastBatchUuid = bin2hex(random_bytes(16));
-          $lastBatchResult = $result->result->value;
-          $this->logger->info('DBTNG sync batch applied: {events} events, {dirty} dirty identities, {ack} acknowledged, {pending} pending, {duration} ms.', [
-            'events' => $result->capturedEvents,
-            'dirty' => $result->dirtyIdentities,
-            'ack' => $result->acknowledgedEvents,
-            'pending' => $result->pendingAfter,
-            'duration' => $result->durationMilliseconds,
-          ]);
-
-          if ($result->result === SyncResultStatus::MorePending) {
-            continue;
+          catch (OperationLockedException|SyncTransientException $exception) {
+            $consecutiveFailures++;
+            $delay = $this->backoff->delay($consecutiveFailures, $this->configuration);
+            $this->persist(
+              SyncWorkerState::Backoff,
+              $startedAt,
+              $topology->primary->label(),
+              $topology->standby->label(),
+              $topology->profile->value,
+              $backlog,
+              $lastSuccessAt,
+              $lastBatchUuid,
+              $lastBatchResult,
+              $consecutiveFailures,
+              $delay,
+              $exception,
+            );
+            $this->logTransition($lastLoggedState, SyncWorkerState::Backoff);
+            $this->sleeper->sleep($delay);
           }
-          $backlog = $this->capture->backlog();
-          $this->persist(
-            SyncWorkerState::Idle,
-            $startedAt,
-            $topology->primary->label(),
-            $topology->standby->label(),
-            $topology->profile->value,
-            $backlog,
-            $lastSuccessAt,
-            $lastBatchUuid,
-            $lastBatchResult,
-          );
-          $this->logTransition($lastLoggedState, SyncWorkerState::Idle);
-          $this->sleeper->sleep($configuration->pollSeconds);
+          catch (SyncBlockedException $exception) {
+            $consecutiveFailures++;
+            $this->persist(
+              SyncWorkerState::Blocked,
+              $startedAt,
+              $topology->primary->label(),
+              $topology->standby->label(),
+              $topology->profile->value,
+              $backlog,
+              $lastSuccessAt,
+              $lastBatchUuid,
+              $lastBatchResult,
+              $consecutiveFailures,
+              $this->configuration->blockedRetrySeconds,
+              $exception,
+            );
+            $this->logTransition($lastLoggedState, SyncWorkerState::Blocked);
+            $this->sleeper->sleep($this->configuration->blockedRetrySeconds);
+          }
         }
-        catch (OperationLockedException|SyncTransientException $exception) {
-          $consecutiveFailures++;
-          $delay = $this->backoff->delay($consecutiveFailures, $configuration);
-          $this->persist(
-            SyncWorkerState::Backoff,
-            $startedAt,
-            $topology->primary->label(),
-            $topology->standby->label(),
-            $topology->profile->value,
-            $backlog,
-            $lastSuccessAt,
-            $lastBatchUuid,
-            $lastBatchResult,
-            $consecutiveFailures,
-            $delay,
-            $exception,
-          );
-          $this->logTransition($lastLoggedState, SyncWorkerState::Backoff);
-          $this->sleeper->sleep($delay);
-        }
-        catch (SyncBlockedException $exception) {
-          $consecutiveFailures++;
-          $this->persist(
-            SyncWorkerState::Blocked,
-            $startedAt,
-            $topology->primary->label(),
-            $topology->standby->label(),
-            $topology->profile->value,
-            $backlog,
-            $lastSuccessAt,
-            $lastBatchUuid,
-            $lastBatchResult,
-            $consecutiveFailures,
-            $configuration->blockedRetrySeconds,
-            $exception,
-          );
-          $this->logTransition($lastLoggedState, SyncWorkerState::Blocked);
-          $this->sleeper->sleep($configuration->blockedRetrySeconds);
-        }
+
+        $finalBacklog = $this->capture->backlog();
+        $this->persist(
+          SyncWorkerState::Stopping,
+          $startedAt,
+          $topology->primary->label(),
+          $topology->standby->label(),
+          $topology->profile->value,
+          $finalBacklog,
+          $lastSuccessAt,
+          $lastBatchUuid,
+          $lastBatchResult,
+        );
+        $this->logTransition($lastLoggedState, SyncWorkerState::Stopping);
+        $this->persist(
+          SyncWorkerState::Stopped,
+          $startedAt,
+          $topology->primary->label(),
+          $topology->standby->label(),
+          $topology->profile->value,
+          $finalBacklog,
+          $lastSuccessAt,
+          $lastBatchUuid,
+          $lastBatchResult,
+        );
+        $this->logTransition($lastLoggedState, SyncWorkerState::Stopped);
       }
-
-      $this->persist(
-        SyncWorkerState::Stopping,
-        $startedAt,
-        $topology->primary->label(),
-        $topology->standby->label(),
-        $topology->profile->value,
-        $this->capture->backlog(),
-        $lastSuccessAt,
-        $lastBatchUuid,
-        $lastBatchResult,
-      );
-      $this->logTransition($lastLoggedState, SyncWorkerState::Stopping);
-      $this->persist(
-        SyncWorkerState::Stopped,
-        $startedAt,
-        $topology->primary->label(),
-        $topology->standby->label(),
-        $topology->profile->value,
-        $this->capture->backlog(),
-        $lastSuccessAt,
-        $lastBatchUuid,
-        $lastBatchResult,
-      );
-      $this->logTransition($lastLoggedState, SyncWorkerState::Stopped);
-    }
-    catch (\Throwable $exception) {
-      $this->persist(
-        SyncWorkerState::Error,
-        $startedAt,
-        $topology->primary->label(),
-        $topology->standby->label(),
-        $topology->profile->value,
-        new ChangeBacklogStatus(0),
-        $lastSuccessAt,
-        $lastBatchUuid,
-        $lastBatchResult,
-        $consecutiveFailures,
-        0,
-        $exception,
-      );
-      $this->logger->error('DBTNG continuous sync worker terminated with {class}.', ['class' => $exception::class]);
-      throw $exception;
+      catch (\Throwable $exception) {
+        $this->persist(
+          SyncWorkerState::Error,
+          $startedAt,
+          $topology->primary->label(),
+          $topology->standby->label(),
+          $topology->profile->value,
+          new ChangeBacklogStatus(0),
+          $lastSuccessAt,
+          $lastBatchUuid,
+          $lastBatchResult,
+          $consecutiveFailures,
+          0,
+          $exception,
+        );
+        $this->logger->error('DBTNG continuous sync worker terminated with {class}.', ['class' => $exception::class]);
+        throw $exception;
+      }
     }
     finally {
       $lock->release();
@@ -270,7 +273,7 @@ final class ContinuousSyncWorker {
       $lastBatchResult,
       $consecutiveFailures,
       $currentBackoff,
-      $error?::class,
+      $error === NULL ? NULL : $error::class,
       $error === NULL ? NULL : $this->isoNow(),
     ));
   }

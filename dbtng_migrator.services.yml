@@ -68,6 +68,10 @@ services:
     arguments:
       - '@config.factory'
 
+  dbtng_migrator.sync.configuration:
+    class: Drupal\dbtng_migrator\Model\SyncWorkerConfiguration
+    factory: ['@dbtng_migrator.sync.configuration_factory', 'create']
+
   dbtng_migrator.sync.backoff:
     class: Drupal\dbtng_migrator\Sync\SyncBackoffPolicy
 
@@ -100,7 +104,7 @@ services:
       - '@Drupal\dbtng_migrator\Contract\SyncEngineInterface'
       - '@Drupal\dbtng_migrator\Contract\ChangeCaptureInterface'
       - '@Drupal\dbtng_migrator\Contract\DatabaseTopologyResolverInterface'
-      - '@dbtng_migrator.sync.configuration_factory'
+      - '@dbtng_migrator.sync.configuration'
       - '@dbtng_migrator.sync.backoff'
       - '@dbtng_migrator.sync.state_store'
       - '@dbtng_migrator.sync.worker_lock'
@@ -113,7 +117,7 @@ services:
     arguments:
       - '@Drupal\dbtng_migrator\Contract\ChangeCaptureInterface'
       - '@Drupal\dbtng_migrator\Contract\DatabaseTopologyResolverInterface'
-      - '@dbtng_migrator.sync.configuration_factory'
+      - '@dbtng_migrator.sync.configuration'
       - '@dbtng_migrator.sync.state_store'
       - '@dbtng_migrator.sync.clock'
 
