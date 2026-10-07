@@ -198,7 +198,9 @@ Both MariaDB and SQLite capture were validated on `dbtng.toca.net.br`: row trigg
 
 ## Phase E2 sync-once coverage
 
-Unit tests cover composite-key canonicalization, duplicate/out-of-order event reduction, exact event-ID preservation, SQLite current-row reads, idempotent upsert/delete, bounded table replacement, and rollback when table replacement fails. Live acceptance additionally requires both engine directions, clean-policy behavior, exact ACK after standby commit, replay after injected pre-ACK failure, standby-unavailable backlog retention, and a backlog exceeding multiple bounded batches. Do not report E2 operationally complete until those host tests and final reconciliation pass.
+Unit tests cover composite-key canonicalization, duplicate/out-of-order event reduction, exact event-ID preservation, SQLite current-row reads, idempotent upsert/delete, bounded table replacement, and rollback when table replacement fails.
+
+Live validation on 2026-10-07 passed both FULL directions, CLEAN MariaDB -> SQLite policy, no-PK table-dirty replacement in both directions, composite-key change, current-state update collapse, exact ACK failure/replay, standby permission failure with backlog retention, profile-mismatch blocking and 1,200 events across 500/500/200 batches. Each sync batch used approximately 4–6 MiB additional peak memory. The final canonical environment is MariaDB primary / SQLite CLEAN standby, capture healthy, zero pending and CLEAN reconciliation `MATCH`; the final standby is not FULL-equivalent or promotable. A full-profile drift after `cache:rebuild` demonstrated that MySQL TRUNCATE remains uncovered and can require rebuild.
 
 For MariaDB primary:
 

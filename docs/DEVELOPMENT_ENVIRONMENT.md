@@ -336,3 +336,17 @@ Phase E1 was validated on the canonical host for both primary engines. INSERT/UP
 Use `dbtng:capture:install` only on the selected primary and establish a fresh validated FULL rebuild baseline before sync tests. The site was returned to MariaDB primary / SQLite standby after E1 validation. E2 sync is one-shot and bounded; it does not provide a continuous worker or zero-lag guarantee.
 
 Do not use `virtualmin list-domains --multiline` during this validation.
+
+## Phase E2 live sync result
+
+Validated 2026-10-07 on Drupal 11.4.8 / PHP 8.4.26 / Drush 13.8.0 / MariaDB 11.8.6 / SQLite 3.46.1. Drush discovered `dbtng:sync --once` from the site's private Drush command list. The canonical site was placed in maintenance mode during both primary-role transitions; capture was explicitly uninstalled from the old primary and installed on the new primary.
+
+- MariaDB -> SQLite FULL: drained 2,063 existing events in bounded batches, then exercised create, repeated update collapse, delete, composite-key change and a no-PK table-dirty fixture. The standby remained HTTP-independent and `dbtng:reconcile` returned `MATCH` after catch-up.
+- Commit-before-ACK failure: one exact event remained pending after a controlled `after_standby_commit_before_ack` exception; the standby already held its effect. Replay applied idempotently, acknowledged the selected ID and restored `MATCH`.
+- Standby unavailable: removing read permission from the active SQLite generation made sync fail with exit 1; primary HTTP remained 200 and the event stayed pending. Restoring mode 0600 allowed catch-up.
+- Bounded backlog: 1,200 fixture events drained in 500/500/200 batches; each sync process reported approximately 6 MiB incremental peak memory. The fixture writer process peaked at 28 MiB. No backlog-wide PHP materialization occurred.
+- SQLite -> MariaDB FULL: a fresh 58-table, 3,569-row FULL baseline was rebuilt and validated. Current-state upserts and repeated updates passed; no-PK insert/update/delete used one table reconciliation per batch. Reconciliation returned `MATCH`.
+- CLEAN MariaDB -> SQLite: cache rows remained absent while `queue`, `key_value`, and the unknown no-PK fixture table were preserved; reconciliation returned `MATCH`. A CLEAN-to-FULL profile change blocked sync with exit 1 and left capture events pending until a FULL rebuild.
+- A full-profile comparison after `cache:rebuild` detected cache drift without row-trigger events, consistent with the documented MySQL TRUNCATE boundary. The final standby was therefore rebuilt as CLEAN and is not promotable as FULL.
+
+Final state: MariaDB primary, SQLite CLEAN standby, capture healthy with zero pending events, reconciliation `MATCH`, Drupal database connected, and public HTTPS returned HTTP 200. The final CLEAN projection is explicitly **NOT FULL-EQUIVALENT / NOT FOR PROMOTION**.
