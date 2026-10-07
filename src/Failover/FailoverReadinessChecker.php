@@ -29,9 +29,14 @@ final class FailoverReadinessChecker implements FailoverReadinessCheckerInterfac
 
   public function check(): FailoverReadinessReport {
     $topology = $this->resolver->resolve();
-    $capture = $this->capture->status();
     $reconciliation = $this->reconciliation->reconcile();
     $manifest = $this->manifests->readCurrent($topology->standby->identity);
+
+    // Read capture last so a write that occurred while reconciliation was
+    // running is more likely to surface as pending and fail closed. An
+    // external write fence remains mandatory because no read-only Drupal
+    // command can eliminate the race after its final observation.
+    $capture = $this->capture->status();
     $blockers = [];
 
     if ($topology->profile !== ReplicationProfile::Full) {

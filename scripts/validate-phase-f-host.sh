@@ -73,6 +73,9 @@ trap 'rm -rf -- "$tmpdir"' EXIT
   "$drush" --uri="$uri" status >/dev/null
   "$drush" --uri="$uri" help dbtng:sync >/dev/null
   "$drush" --uri="$uri" help dbtng:sync:status >/dev/null
+  if "$drush" --uri="$uri" list --format=list 2>/dev/null | grep -Fxq 'dbtng:failover:check'; then
+    "$drush" --uri="$uri" help dbtng:failover:check >/dev/null
+  fi
   "$drush" --uri="$uri" dbtng:doctor >"$tmpdir/doctor.txt"
   "$drush" --uri="$uri" dbtng:capture:status >"$tmpdir/capture.txt"
   set +e

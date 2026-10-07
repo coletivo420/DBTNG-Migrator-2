@@ -89,3 +89,8 @@ NORMAL
 ```
 
 The model is intentionally not persisted or executed automatically in G1. It exists to reject unsafe conceptual shortcuts in code/tests and to define future G2 runbook/tooling boundaries.
+
+
+### Readiness observation race
+
+G1 intentionally reads capture/backlog **after** reconciliation and manifest evidence so writes that happen during the check are more likely to become visible as pending blockers. This narrows but cannot eliminate the race: a write may occur immediately after the last read. Therefore the authoritative promotion sequence still requires an external write fence followed by a second `dbtng:failover:check` under that fence.
